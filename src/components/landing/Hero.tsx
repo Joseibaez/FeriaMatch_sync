@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Calendar, Users, Building2, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 // Hero section for FeriaMatch landing page
 const Hero = () => {
@@ -30,9 +31,11 @@ const Hero = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row animate-fade-in" style={{ animationDelay: "0.3s" }}>
-            <Button variant="hero" size="xl">
-              Comenzar ahora
-              <ArrowRight className="ml-2 h-5 w-5" />
+            <Button variant="hero" size="xl" asChild>
+              <Link to="/app">
+                Comenzar ahora
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
             </Button>
             <Button variant="hero-outline" size="xl">
               Ver demostración
