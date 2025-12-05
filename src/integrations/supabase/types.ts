@@ -14,16 +14,127 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      events: {
+        Row: {
+          created_at: string
+          end_time: string
+          event_date: string
+          id: string
+          slot_duration_minutes: number
+          start_time: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          event_date: string
+          id?: string
+          slot_duration_minutes?: number
+          start_time: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          event_date?: string
+          id?: string
+          slot_duration_minutes?: number
+          start_time?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          company_name: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          company_name?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          company_name?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: []
+      }
+      slots: {
+        Row: {
+          candidate_id: string | null
+          company_id: string | null
+          created_at: string
+          end_time: string
+          event_id: string
+          id: string
+          start_time: string
+        }
+        Insert: {
+          candidate_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          end_time: string
+          event_id: string
+          id?: string
+          start_time: string
+        }
+        Update: {
+          candidate_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          end_time?: string
+          event_id?: string
+          id?: string
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slots_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slots_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "admin" | "recruiter" | "candidate"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +261,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["admin", "recruiter", "candidate"],
+    },
   },
 } as const
