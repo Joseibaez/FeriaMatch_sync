@@ -24,16 +24,18 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     );
   }
 
-  // Allow access in demo mode
-  if (isDemoMode) {
+  // Demo mode: ONLY allow access to non-role-protected routes
+  // Never bypass authentication for admin or role-protected routes
+  if (isDemoMode && !requiredRole) {
     return <>{children}</>;
   }
 
+  // For role-protected routes or when not in demo mode, require authentication
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Check role requirements
+  // Check role requirements for authenticated users
   if (requiredRole) {
     const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
     if (userRole && !allowedRoles.includes(userRole)) {

@@ -1,5 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { createContext, useContext, useState, ReactNode } from "react";
 
 interface DemoContextType {
   isDemoMode: boolean;
@@ -10,17 +9,14 @@ interface DemoContextType {
 const DemoContext = createContext<DemoContextType | undefined>(undefined);
 
 export const DemoProvider = ({ children }: { children: ReactNode }) => {
-  const [isDemoMode, setIsDemoMode] = useState(() => {
-    return localStorage.getItem("feriamatch_demo_mode") === "true";
-  });
+  // Use session state only - NOT localStorage to prevent manipulation
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   const enterDemoMode = () => {
-    localStorage.setItem("feriamatch_demo_mode", "true");
     setIsDemoMode(true);
   };
 
   const exitDemoMode = () => {
-    localStorage.removeItem("feriamatch_demo_mode");
     setIsDemoMode(false);
   };
 
