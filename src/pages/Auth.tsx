@@ -7,17 +7,21 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Briefcase } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Loader2, Briefcase, User, Building2 } from 'lucide-react';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+
+type SignupRole = 'candidate' | 'recruiter';
 
 export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [companyName, setCompanyName] = useState('');
+  const [selectedRole, setSelectedRole] = useState<SignupRole>('candidate');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -40,6 +44,9 @@ export default function Auth() {
       passwordSchema.parse(password);
       if (isSignUp && !fullName.trim()) {
         throw new Error('Full name is required');
+      }
+      if (isSignUp && selectedRole === 'recruiter' && !companyName.trim()) {
+        throw new Error('Company name is required for recruiters');
       }
       return true;
     } catch (err) {
@@ -79,7 +86,13 @@ export default function Auth() {
     if (!validateInputs(true)) return;
     
     setLoading(true);
-    const { error } = await signUp(email, password, fullName, companyName || undefined);
+    const { error } = await signUp(
+      email, 
+      password, 
+      fullName, 
+      selectedRole === 'recruiter' ? companyName : undefined,
+      selectedRole
+    );
     setLoading(false);
 
     if (error) {
@@ -149,6 +162,47 @@ export default function Auth() {
             
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
+                {/* Role Selection */}
+                <div className="space-y-3">
+                  <Label>I am a...</Label>
+                  <RadioGroup
+                    value={selectedRole}
+                    onValueChange={(value) => setSelectedRole(value as SignupRole)}
+                    className="grid grid-cols-2 gap-3"
+                  >
+                    <div>
+                      <RadioGroupItem
+                        value="candidate"
+                        id="role-candidate"
+                        className="peer sr-only"
+                      />
+                      <Label
+                        htmlFor="role-candidate"
+                        className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors"
+                      >
+                        <User className="mb-2 h-6 w-6" />
+                        <span className="font-medium">Candidate</span>
+                        <span className="text-xs text-muted-foreground">Looking for jobs</span>
+                      </Label>
+                    </div>
+                    <div>
+                      <RadioGroupItem
+                        value="recruiter"
+                        id="role-recruiter"
+                        className="peer sr-only"
+                      />
+                      <Label
+                        htmlFor="role-recruiter"
+                        className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors"
+                      >
+                        <Building2 className="mb-2 h-6 w-6" />
+                        <span className="font-medium">Recruiter</span>
+                        <span className="text-xs text-muted-foreground">Hiring talent</span>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="signup-name">Full Name</Label>
                   <Input
@@ -182,16 +236,21 @@ export default function Auth() {
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-company">Company Name (Optional)</Label>
-                  <Input
-                    id="signup-company"
-                    type="text"
-                    placeholder="Acme Inc."
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                  />
-                </div>
+                
+                {selectedRole === 'recruiter' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-company">Company Name</Label>
+                    <Input
+                      id="signup-company"
+                      type="text"
+                      placeholder="Acme Inc."
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+                
                 {error && (
                   <Alert variant="destructive">
                     <AlertDescription>{error}</AlertDescription>
