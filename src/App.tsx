@@ -4,6 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
+// Auth
+import { AuthProvider } from "./contexts/AuthContext";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import Auth from "./pages/Auth";
+
 // Pages
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -24,22 +29,34 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          {/* Public landing page */}
-          <Route path="/" element={<Index />} />
-          
-          {/* App routes with sidebar layout */}
-          <Route path="/app" element={<AppLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="agenda" element={<MiAgenda />} />
-            <Route path="eventos" element={<Eventos />} />
-            <Route path="perfil" element={<Perfil />} />
-            <Route path="configuracion" element={<Configuracion />} />
-          </Route>
+        <AuthProvider>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            
+            {/* Protected app routes with sidebar layout */}
+            <Route path="/app" element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Dashboard />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="agenda" element={<MiAgenda />} />
+              <Route path="eventos" element={
+                <ProtectedRoute requiredRole="admin">
+                  <Eventos />
+                </ProtectedRoute>
+              } />
+              <Route path="perfil" element={<Perfil />} />
+              <Route path="configuracion" element={<Configuracion />} />
+            </Route>
 
-          {/* Catch-all 404 route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+            {/* Catch-all 404 route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
