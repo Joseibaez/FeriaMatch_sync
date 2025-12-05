@@ -70,8 +70,7 @@ const Roles = () => {
           {roles.map((role, index) => (
             <Card 
               key={role.title} 
-              className="relative overflow-hidden border bg-card transition-all hover:shadow-lg animate-fade-in"
-              style={{ animationDelay: `${index * 0.15}s` }}
+              className="relative overflow-hidden border bg-card transition-all hover:shadow-lg"
             >
               {/* Colored top bar */}
               <div className={`h-1 ${role.iconBg}`} />

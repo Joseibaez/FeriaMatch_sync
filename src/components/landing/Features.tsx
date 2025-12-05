@@ -52,8 +52,7 @@ const Features = () => {
           {features.map((feature, index) => (
             <Card 
               key={feature.title} 
-              className="border-0 bg-card shadow-sm transition-all hover:shadow-md animate-fade-in"
-              style={{ animationDelay: `${index * 0.1}s` }}
+              className="border-0 bg-card shadow-sm transition-all hover:shadow-md"
             >
               <CardContent className="p-6">
                 <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${feature.iconBg}`}>
