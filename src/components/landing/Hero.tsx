@@ -26,7 +26,7 @@ const Hero = () => {
             <img 
               src={logoFeriaMatch} 
               alt="Cámara Zaragoza | FeriaMatch" 
-              className="mx-auto h-16 w-auto mix-blend-multiply md:h-20 lg:h-24"
+              className="mx-auto h-16 w-auto md:h-20 lg:h-24"
             />
           </div>
 
