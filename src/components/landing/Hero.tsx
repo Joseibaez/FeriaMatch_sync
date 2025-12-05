@@ -1,9 +1,18 @@
 import { Button } from "@/components/ui/button";
 import { Calendar, Users, Building2, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useDemo } from "@/contexts/DemoContext";
 
 // Hero section for FeriaMatch landing page
 const Hero = () => {
+  const navigate = useNavigate();
+  const { enterDemoMode } = useDemo();
+
+  const handleDemoClick = () => {
+    enterDemoMode();
+    navigate("/app");
+  };
+
   return (
     <section className="relative overflow-hidden bg-background">
       {/* Subtle gradient background */}
@@ -37,8 +46,8 @@ const Hero = () => {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
-            <Button variant="hero-outline" size="xl" asChild>
-              <Link to="/app">Ver demostración</Link>
+            <Button variant="hero-outline" size="xl" onClick={handleDemoClick}>
+              Ver demostración
             </Button>
           </div>
 

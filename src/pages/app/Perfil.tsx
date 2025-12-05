@@ -4,11 +4,15 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { BackButton } from "@/components/navigation/BackButton";
 
 // Placeholder profile page
 const Perfil = () => {
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Back button */}
+      <BackButton variant="dashboard" />
+
       {/* Profile header card */}
       <Card>
         <CardContent className="pt-6">
