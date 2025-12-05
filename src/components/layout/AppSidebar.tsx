@@ -1,6 +1,14 @@
 import { useLocation } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
-import { Calendar, LayoutDashboard, CalendarDays, Settings, Building2, ChevronLeft } from "lucide-react";
+import { 
+  Calendar, 
+  LayoutDashboard, 
+  CalendarDays, 
+  Settings, 
+  Building2, 
+  ChevronLeft,
+  User
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,41 +23,26 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Badge } from "@/components/ui/badge";
 
 // Navigation items for the sidebar
 const mainNavItems = [
-  {
-    title: "Dashboard",
-    url: "/app",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Mi Agenda",
-    url: "/app/agenda",
-    icon: CalendarDays,
-  },
+  { title: "Dashboard", url: "/app", icon: LayoutDashboard },
+  { title: "Mi Agenda", url: "/app/agenda", icon: CalendarDays },
+  { title: "Mi Perfil", url: "/app/perfil", icon: User },
 ];
 
 // Admin-only navigation items
 const adminNavItems = [
-  {
-    title: "Eventos",
-    url: "/app/eventos",
-    icon: Calendar,
-    badge: "Admin",
-  },
+  { title: "Eventos", url: "/app/eventos", icon: Calendar, badge: "Admin Only" },
 ];
 
 // Settings navigation
 const settingsNavItems = [
-  {
-    title: "Configuración",
-    url: "/app/configuracion",
-    icon: Settings,
-  },
+  { title: "Configuración", url: "/app/configuracion", icon: Settings },
 ];
 
-// Main sidebar component for FeriaMatch app
+// Desktop sidebar component for FeriaMatch app
 const AppSidebar = () => {
   const location = useLocation();
   const { state } = useSidebar();
@@ -58,7 +51,7 @@ const AppSidebar = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className="hidden md:flex">
       {/* Header with logo */}
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-2 px-2 py-3">
@@ -110,13 +103,13 @@ const AppSidebar = () => {
                     isActive={isActive(item.url)}
                     tooltip={item.title}
                   >
-                    <NavLink to={item.url}>
+                    <NavLink to={item.url} className="flex items-center gap-2">
                       <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <span className="flex-1">{item.title}</span>
                       {!isCollapsed && item.badge && (
-                        <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                        <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0 h-5 bg-warning/10 text-warning border-warning/20">
                           {item.badge}
-                        </span>
+                        </Badge>
                       )}
                     </NavLink>
                   </SidebarMenuButton>
@@ -126,7 +119,7 @@ const AppSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Settings */}
+        {/* Settings at bottom */}
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>
             <SidebarMenu>

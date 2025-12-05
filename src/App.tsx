@@ -13,6 +13,7 @@ import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/app/Dashboard";
 import MiAgenda from "./pages/app/MiAgenda";
 import Eventos from "./pages/app/Eventos";
+import Perfil from "./pages/app/Perfil";
 import Configuracion from "./pages/app/Configuracion";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
             <Route index element={<Dashboard />} />
             <Route path="agenda" element={<MiAgenda />} />
             <Route path="eventos" element={<Eventos />} />
+            <Route path="perfil" element={<Perfil />} />
             <Route path="configuracion" element={<Configuracion />} />
           </Route>
 
