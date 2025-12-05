@@ -5,11 +5,15 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { User, Bell, Shield, Palette } from "lucide-react";
+import { BackButton } from "@/components/navigation/BackButton";
 
 // Configuracion page - User settings and preferences
 const Configuracion = () => {
   return (
     <div className="space-y-6">
+      {/* Back button */}
+      <BackButton variant="dashboard" />
+
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
