@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Calendar, Menu } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 // Header/Navbar component for landing page
 const Header = () => {
@@ -10,12 +11,12 @@ const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         {/* Logo */}
-        <a href="/" className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
             <Calendar className="h-5 w-5 text-primary-foreground" />
           </div>
           <span className="text-xl font-bold text-foreground">FeriaMatch</span>
-        </a>
+        </Link>
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center gap-6 md:flex">
@@ -32,8 +33,12 @@ const Header = () => {
 
         {/* Desktop CTA */}
         <div className="hidden items-center gap-3 md:flex">
-          <Button variant="ghost">Iniciar sesión</Button>
-          <Button variant="default">Registrarse</Button>
+          <Button variant="ghost" asChild>
+            <Link to="/auth">Iniciar sesión</Link>
+          </Button>
+          <Button variant="default" asChild>
+            <Link to="/auth">Registrarse</Link>
+          </Button>
         </div>
 
         {/* Mobile menu button */}
@@ -61,8 +66,12 @@ const Header = () => {
               Contacto
             </a>
             <hr className="my-2" />
-            <Button variant="ghost" className="justify-start">Iniciar sesión</Button>
-            <Button variant="default">Registrarse</Button>
+            <Button variant="ghost" className="justify-start" asChild>
+              <Link to="/auth">Iniciar sesión</Link>
+            </Button>
+            <Button variant="default" asChild>
+              <Link to="/auth">Registrarse</Link>
+            </Button>
           </nav>
         </div>
       )}
