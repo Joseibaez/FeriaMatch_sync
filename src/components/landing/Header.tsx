@@ -3,16 +3,21 @@ import { Menu } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import logoFeriaMatch from "@/assets/logo-feriamatch.png";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Header/Navbar component for landing page
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user } = useAuth();
+
+  // Link destination based on auth status
+  const logoLink = user ? "/app" : "/";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
-        {/* Logo */}
-        <Link to="/" className="flex items-center">
+        {/* Logo - links to dashboard if authenticated, home if public */}
+        <Link to={logoLink} className="flex items-center min-h-[44px]">
           <img 
             src={logoFeriaMatch} 
             alt="Cámara Zaragoza | FeriaMatch" 
