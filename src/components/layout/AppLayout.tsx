@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDemo } from "@/contexts/DemoContext";
 import { Eye, X } from "lucide-react";
+import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
+import { GoBackButton } from "@/components/navigation/GoBackButton";
 
 // Page titles mapping
 const pageTitles: Record<string, string> = {
@@ -80,6 +82,12 @@ const AppLayout = () => {
 
         {/* Main content area - slate-50 background */}
         <main className="flex-1 bg-muted/50 p-4 md:p-6">
+          {/* Wayfinding navigation */}
+          <div className="flex items-center gap-2 mb-2">
+            <GoBackButton />
+          </div>
+          <Breadcrumbs />
+          
           <Outlet />
         </main>
       </SidebarInset>

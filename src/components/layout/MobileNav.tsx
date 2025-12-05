@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import { 
   Menu, 
@@ -64,7 +64,11 @@ export const MobileNav = () => {
       
       <SheetContent side="left" className="w-72 p-0 bg-card">
         <SheetHeader className="border-b border-border p-4">
-          <div className="flex items-center gap-3">
+          <Link 
+            to="/app" 
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-3 min-h-[44px] rounded-md hover:bg-muted/50 transition-colors -mx-2 px-2"
+          >
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
               <Building2 className="h-5 w-5 text-primary-foreground" />
             </div>
@@ -72,7 +76,7 @@ export const MobileNav = () => {
               <SheetTitle className="text-left text-base">FeriaMatch</SheetTitle>
               <span className="text-xs text-muted-foreground">Panel de control</span>
             </div>
-          </div>
+          </Link>
         </SheetHeader>
 
         <nav className="flex flex-col gap-1 p-4">

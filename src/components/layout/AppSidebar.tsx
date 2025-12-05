@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import { useAuth, AppRole } from "@/contexts/AuthContext";
 import { 
@@ -119,9 +119,12 @@ const AppSidebar = () => {
 
   return (
     <Sidebar collapsible="icon" className="hidden md:flex">
-      {/* Header with logo */}
+      {/* Header with logo - links to dashboard */}
       <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-2 px-2 py-3">
+        <Link 
+          to="/app" 
+          className="flex items-center gap-2 px-2 py-3 min-h-[44px] rounded-md hover:bg-sidebar-accent transition-colors"
+        >
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
             <Building2 className="h-4 w-4 text-primary-foreground" />
           </div>
@@ -131,7 +134,7 @@ const AppSidebar = () => {
               <span className="text-xs text-muted-foreground capitalize">{userRole || 'User'}</span>
             </div>
           )}
-        </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent>
