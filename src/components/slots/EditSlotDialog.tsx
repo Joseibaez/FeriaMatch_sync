@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,7 +12,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -24,20 +23,19 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Clock, Building, Plus, Trash2, User } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
-// Validation schema for slot editing
-const editSlotSchema = z.object({
-  start_time: z.string().min(1, "La hora de inicio es requerida"),
-  end_time: z.string().min(1, "La hora de fin es requerida"),
-}).refine((data) => {
-  return data.start_time < data.end_time;
-}, {
-  message: "La hora de fin debe ser posterior a la hora de inicio",
-  path: ["end_time"],
+// Validation schema for adding a company allocation
+const addAllocationSchema = z.object({
+  company_name: z.string().min(1, "El nombre de la empresa es requerido"),
+  sector: z.string().optional(),
+  interviewer_name: z.string().optional(),
 });
 
-type EditSlotFormValues = z.infer<typeof editSlotSchema>;
+type AddAllocationFormValues = z.infer<typeof addAllocationSchema>;
 
 interface EditSlotDialogProps {
   slot: Tables<"slots"> | null;
@@ -49,57 +47,58 @@ interface EditSlotDialogProps {
 export function EditSlotDialog({ slot, eventId, open, onOpenChange }: EditSlotDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isAddingCompany, setIsAddingCompany] = useState(false);
 
-  const form = useForm<EditSlotFormValues>({
-    resolver: zodResolver(editSlotSchema),
+  const form = useForm<AddAllocationFormValues>({
+    resolver: zodResolver(addAllocationSchema),
     defaultValues: {
-      start_time: "",
-      end_time: "",
+      company_name: "",
+      sector: "",
+      interviewer_name: "",
     },
   });
 
-  // Update form values when slot changes
-  useEffect(() => {
-    if (slot) {
-      const startDate = new Date(slot.start_time);
-      const endDate = new Date(slot.end_time);
-      form.reset({
-        start_time: format(startDate, "HH:mm"),
-        end_time: format(endDate, "HH:mm"),
-      });
-    }
-  }, [slot, form]);
+  // Fetch allocations for this slot
+  const { data: allocations, isLoading: allocationsLoading } = useQuery({
+    queryKey: ["slot-allocations", slot?.id],
+    queryFn: async () => {
+      if (!slot) return [];
+      const { data, error } = await supabase
+        .from("slot_allocations")
+        .select("*")
+        .eq("slot_id", slot.id)
+        .order("created_at", { ascending: true });
 
-  // Mutation to update the slot
-  const updateSlotMutation = useMutation({
-    mutationFn: async (values: EditSlotFormValues) => {
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!slot && open,
+  });
+
+  // Add allocation mutation
+  const addAllocationMutation = useMutation({
+    mutationFn: async (values: AddAllocationFormValues) => {
       if (!slot) throw new Error("No slot selected");
 
-      // Get the date from the existing slot to maintain consistency
-      const originalDate = new Date(slot.start_time);
-      const dateStr = format(originalDate, "yyyy-MM-dd");
-
-      // Build new timestamps with the updated times
-      const newStartTime = new Date(`${dateStr}T${values.start_time}:00`);
-      const newEndTime = new Date(`${dateStr}T${values.end_time}:00`);
-
       const { error } = await supabase
-        .from("slots")
-        .update({
-          start_time: newStartTime.toISOString(),
-          end_time: newEndTime.toISOString(),
-        })
-        .eq("id", slot.id);
+        .from("slot_allocations")
+        .insert({
+          slot_id: slot.id,
+          company_name: values.company_name,
+          sector: values.sector || null,
+          interviewer_name: values.interviewer_name || null,
+        });
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["slots", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["slot-allocations", slot?.id] });
       toast({
-        title: "Slot actualizado",
-        description: "El slot ha sido actualizado correctamente.",
+        title: "Empresa agregada",
+        description: "La empresa ha sido asignada al slot correctamente.",
       });
-      onOpenChange(false);
+      form.reset();
+      setIsAddingCompany(false);
     },
     onError: (error) => {
       toast({
@@ -110,60 +109,217 @@ export function EditSlotDialog({ slot, eventId, open, onOpenChange }: EditSlotDi
     },
   });
 
-  const onSubmit = (values: EditSlotFormValues) => {
-    updateSlotMutation.mutate(values);
+  // Delete allocation mutation
+  const deleteAllocationMutation = useMutation({
+    mutationFn: async (allocationId: string) => {
+      const { error } = await supabase
+        .from("slot_allocations")
+        .delete()
+        .eq("id", allocationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["slot-allocations", slot?.id] });
+      toast({
+        title: "Empresa eliminada",
+        description: "La empresa ha sido removida del slot.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (values: AddAllocationFormValues) => {
+    addAllocationMutation.mutate(values);
   };
 
+  const handleClose = (isOpen: boolean) => {
+    if (!isOpen) {
+      setIsAddingCompany(false);
+      form.reset();
+    }
+    onOpenChange(isOpen);
+  };
+
+  if (!slot) return null;
+
+  const startDate = new Date(slot.start_time);
+  const endDate = new Date(slot.end_time);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Editar Slot</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Gestionar Slot
+          </DialogTitle>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="start_time"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Hora de Inicio</FormLabel>
-                  <FormControl>
-                    <Input type="time" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
-            <FormField
-              control={form.control}
-              name="end_time"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Hora de Fin</FormLabel>
-                  <FormControl>
-                    <Input type="time" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        {/* Time information - Read only */}
+        <div className="rounded-lg border bg-muted/30 p-4">
+          <h4 className="text-sm font-medium text-muted-foreground mb-2">Horario del Slot</h4>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="text-base font-semibold px-3 py-1">
+              {format(startDate, "HH:mm")}
+            </Badge>
+            <span className="text-muted-foreground">→</span>
+            <Badge variant="outline" className="text-base font-semibold px-3 py-1">
+              {format(endDate, "HH:mm")}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {format(startDate, "EEEE, d 'de' MMMM 'de' yyyy")}
+          </p>
+        </div>
 
-            <DialogFooter>
+        <Separator />
+
+        {/* Companies Management Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium flex items-center gap-2">
+              <Building className="h-4 w-4" />
+              Empresas Asignadas
+            </h4>
+            {!isAddingCompany && (
               <Button
-                type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                size="sm"
+                onClick={() => setIsAddingCompany(true)}
               >
-                Cancelar
+                <Plus className="h-4 w-4 mr-1" />
+                Agregar
               </Button>
-              <Button type="submit" disabled={updateSlotMutation.isPending}>
-                {updateSlotMutation.isPending ? "Guardando..." : "Guardar"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+            )}
+          </div>
+
+          {/* Add Company Form */}
+          {isAddingCompany && (
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 rounded-lg border p-4 bg-accent/30">
+                <FormField
+                  control={form.control}
+                  name="company_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre de la Empresa *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ej: TechCorp S.A." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="sector"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sector</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ej: Tecnología" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="interviewer_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre del Entrevistador</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ej: Juan Pérez" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsAddingCompany(false);
+                      form.reset();
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={addAllocationMutation.isPending}
+                  >
+                    {addAllocationMutation.isPending ? "Guardando..." : "Guardar"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          )}
+
+          {/* Allocated Companies List */}
+          {allocationsLoading ? (
+            <div className="text-center py-4 text-muted-foreground text-sm">
+              Cargando empresas...
+            </div>
+          ) : allocations && allocations.length > 0 ? (
+            <div className="space-y-2">
+              {allocations.map((allocation) => (
+                <div
+                  key={allocation.id}
+                  className="flex items-start justify-between rounded-lg border p-3 bg-card"
+                >
+                  <div className="space-y-1">
+                    <p className="font-medium text-sm">{allocation.company_name}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {allocation.sector && (
+                        <Badge variant="secondary" className="text-xs">
+                          {allocation.sector}
+                        </Badge>
+                      )}
+                      {allocation.interviewer_name && (
+                        <Badge variant="outline" className="text-xs">
+                          <User className="h-3 w-3 mr-1" />
+                          {allocation.interviewer_name}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => deleteAllocationMutation.mutate(allocation.id)}
+                    disabled={deleteAllocationMutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground text-sm border rounded-lg border-dashed">
+              <Building className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>No hay empresas asignadas a este slot.</p>
+              <p className="text-xs mt-1">
+                Haz clic en "Agregar" para asignar una empresa.
+              </p>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
