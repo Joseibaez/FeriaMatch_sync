@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building, User, Pencil, Trash2, Briefcase } from "lucide-react";
+import { getStringColor, getContrastTextColor } from "@/lib/colorUtils";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface SlotCardProps {
@@ -95,38 +96,55 @@ export const SlotCard = ({ slot, isAdmin, onEdit, onDelete, isDeleting }: SlotCa
           </div>
         ) : hasAllocations ? (
           <div className="space-y-1.5">
-            {allocations.map((allocation, index) => (
-              <div
-                key={allocation.id}
-                className={`rounded-md bg-background/80 p-2 ${
-                  index < allocations.length - 1 ? "border-b border-border/50" : ""
-                }`}
-              >
-                {/* Company name */}
-                <div className="flex items-center gap-1.5">
-                  <Building className="h-3.5 w-3.5 text-primary" />
-                  <span className="font-medium text-sm text-foreground">
-                    {allocation.company_name}
-                  </span>
-                </div>
-
-                {/* Sector and Interviewer */}
-                <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                  {allocation.sector && (
-                    <Badge variant="outline" className="text-xs font-normal">
-                      <Briefcase className="mr-1 h-3 w-3" />
-                      {allocation.sector}
-                    </Badge>
-                  )}
-                  {allocation.interviewer_name && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <User className="h-3 w-3" />
-                      {allocation.interviewer_name}
+            {allocations.map((allocation, index) => {
+              // Generate deterministic pastel color from company name
+              const bgColor = getStringColor(allocation.company_name);
+              const textColor = getContrastTextColor();
+              
+              return (
+                <div
+                  key={allocation.id}
+                  className={`rounded-md p-2 transition-colors ${
+                    index < allocations.length - 1 ? "border-b border-border/30" : ""
+                  }`}
+                  style={{ backgroundColor: bgColor }}
+                >
+                  {/* Company name */}
+                  <div className="flex items-center gap-1.5">
+                    <Building className="h-3.5 w-3.5" style={{ color: textColor }} />
+                    <span 
+                      className="font-medium text-sm"
+                      style={{ color: textColor }}
+                    >
+                      {allocation.company_name}
                     </span>
-                  )}
+                  </div>
+
+                  {/* Sector and Interviewer */}
+                  <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                    {allocation.sector && (
+                      <Badge 
+                        variant="outline" 
+                        className="text-xs font-normal bg-background/60 border-border/40"
+                        style={{ color: textColor }}
+                      >
+                        <Briefcase className="mr-1 h-3 w-3" />
+                        {allocation.sector}
+                      </Badge>
+                    )}
+                    {allocation.interviewer_name && (
+                      <span 
+                        className="flex items-center gap-1 text-xs opacity-80"
+                        style={{ color: textColor }}
+                      >
+                        <User className="h-3 w-3" />
+                        {allocation.interviewer_name}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="text-xs text-muted-foreground italic">

@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Calendar, Clock, Settings, Layers, Users } from "lucide-react";
+import { Calendar, Clock, Settings, Layers, Users, RefreshCw } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 const EventoDetalle = () => {
@@ -57,7 +57,7 @@ const EventoDetalle = () => {
   });
 
   // Fetch slots for this event
-  const { data: slots, isLoading: slotsLoading } = useQuery({
+  const { data: slots, isLoading: slotsLoading, isFetching: slotsFetching, refetch: refetchSlots } = useQuery({
     queryKey: ["slots", id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -313,17 +313,30 @@ const EventoDetalle = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle>Slots del Evento</CardTitle>
-            {isAdmin && (
+            <div className="flex items-center gap-2">
+              {/* Manual refresh button */}
               <Button
-                onClick={() => setBulkAssignOpen(true)}
-                variant="default"
-                size="sm"
-                className="gap-2"
+                onClick={() => refetchSlots()}
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                disabled={slotsFetching}
+                title="Actualizar slots"
               >
-                <Users className="h-4 w-4" />
-                Asignar por Rango
+                <RefreshCw className={`h-4 w-4 ${slotsFetching ? "animate-spin" : ""}`} />
               </Button>
-            )}
+              {isAdmin && (
+                <Button
+                  onClick={() => setBulkAssignOpen(true)}
+                  variant="default"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  Asignar por Rango
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
