@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GoBackButton } from "@/components/navigation/GoBackButton";
 import { EditSlotDialog } from "@/components/slots/EditSlotDialog";
+import { SlotCard } from "@/components/slots/SlotCard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Calendar, Clock, Settings, Layers, Trash2, User, Building, Pencil } from "lucide-react";
+import { Calendar, Clock, Settings, Layers } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 const EventoDetalle = () => {
@@ -312,74 +313,20 @@ const EventoDetalle = () => {
             <CardTitle>Slots del Evento</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {slots.map((slot) => {
-                const slotStart = new Date(slot.start_time);
-                const slotEnd = new Date(slot.end_time);
-                const isFree = !slot.candidate_id;
-                const hasCompany = !!slot.company_id;
-
-                return (
-                  <div
-                    key={slot.id}
-                    className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${
-                      isFree 
-                        ? "border-border bg-card hover:bg-accent/50" 
-                        : "border-primary/30 bg-primary/5"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="text-sm">
-                        <p className="font-medium">
-                          {format(slotStart, "HH:mm")} - {format(slotEnd, "HH:mm")}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          {isFree ? (
-                            <Badge variant="secondary" className="text-xs">
-                              Libre
-                            </Badge>
-                          ) : (
-                            <Badge variant="default" className="text-xs">
-                              <User className="mr-1 h-3 w-3" />
-                              Reservado
-                            </Badge>
-                          )}
-                          {hasCompany && (
-                            <Badge variant="outline" className="text-xs">
-                              <Building className="mr-1 h-3 w-3" />
-                              Asignado
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          onClick={() => {
-                            setEditingSlot(slot);
-                            setEditDialogOpen(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => deleteSlotMutation.mutate(slot.id)}
-                        disabled={deleteSlotMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {slots.map((slot) => (
+                <SlotCard
+                  key={slot.id}
+                  slot={slot}
+                  isAdmin={isAdmin}
+                  onEdit={(s) => {
+                    setEditingSlot(s);
+                    setEditDialogOpen(true);
+                  }}
+                  onDelete={(slotId) => deleteSlotMutation.mutate(slotId)}
+                  isDeleting={deleteSlotMutation.isPending}
+                />
+              ))}
             </div>
           </CardContent>
         </Card>
