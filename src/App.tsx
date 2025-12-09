@@ -19,6 +19,7 @@ import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/app/Dashboard";
 import MiAgenda from "./pages/app/MiAgenda";
 import Eventos from "./pages/app/Eventos";
+import EventoDetalle from "./pages/app/EventoDetalle";
 import Perfil from "./pages/app/Perfil";
 import Configuracion from "./pages/app/Configuracion";
 
@@ -49,6 +50,11 @@ const App = () => (
               <Route path="eventos" element={
                 <ProtectedRoute requiredRole="admin">
                   <Eventos />
+                </ProtectedRoute>
+              } />
+              <Route path="eventos/:id" element={
+                <ProtectedRoute requiredRole="admin">
+                  <EventoDetalle />
                 </ProtectedRoute>
               } />
               <Route path="perfil" element={<Perfil />} />
