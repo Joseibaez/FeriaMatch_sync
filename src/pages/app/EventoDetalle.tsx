@@ -5,12 +5,14 @@ import { format, parseISO, addMinutes, parse, isBefore } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GoBackButton } from "@/components/navigation/GoBackButton";
+import { EditSlotDialog } from "@/components/slots/EditSlotDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,13 +23,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Calendar, Clock, Settings, Layers, Trash2, User, Building } from "lucide-react";
+import { Calendar, Clock, Settings, Layers, Trash2, User, Building, Pencil } from "lucide-react";
+import type { Tables } from "@/integrations/supabase/types";
 
 const EventoDetalle = () => {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
+  const { hasRole } = useAuth();
   const queryClient = useQueryClient();
   const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
+  const [editingSlot, setEditingSlot] = useState<Tables<"slots"> | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  const isAdmin = hasRole("admin");
 
   // Fetch event details
   const { data: event, isLoading: eventLoading, error: eventError } = useQuery({
@@ -345,15 +353,30 @@ const EventoDetalle = () => {
                         </div>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => deleteSlotMutation.mutate(slot.id)}
-                      disabled={deleteSlotMutation.isPending}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => {
+                            setEditingSlot(slot);
+                            setEditDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => deleteSlotMutation.mutate(slot.id)}
+                        disabled={deleteSlotMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
@@ -372,6 +395,14 @@ const EventoDetalle = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Slot Dialog */}
+      <EditSlotDialog
+        slot={editingSlot}
+        eventId={id!}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+      />
 
       {/* Overwrite Confirmation Dialog */}
       <AlertDialog open={showOverwriteDialog} onOpenChange={setShowOverwriteDialog}>
