@@ -180,7 +180,12 @@ const Eventos = () => {
                       >
                         Configurar
                       </Button>
-                      <Button variant="default" size="sm" className="flex-1">
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => navigate(`/app/agenda/${evento.id}`)}
+                      >
                         Ver Agenda
                       </Button>
                     </div>
