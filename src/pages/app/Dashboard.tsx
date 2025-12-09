@@ -160,12 +160,13 @@ const Dashboard = () => {
                         {format(new Date(event.event_date), "d MMM", { locale: es })}
                       </span>
                       <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8"
-                        onClick={() => navigate(`/app/eventos/${event.id}`)}
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8"
+                        onClick={() => navigate(`/app/agenda/${event.id}`)}
                       >
-                        <ArrowRight className="h-4 w-4" />
+                        Ver Agenda
+                        <ArrowRight className="ml-1 h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
