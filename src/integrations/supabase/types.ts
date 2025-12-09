@@ -68,6 +68,41 @@ export type Database = {
         }
         Relationships: []
       }
+      slot_allocations: {
+        Row: {
+          company_name: string
+          created_at: string
+          id: string
+          interviewer_name: string | null
+          sector: string | null
+          slot_id: string
+        }
+        Insert: {
+          company_name: string
+          created_at?: string
+          id?: string
+          interviewer_name?: string | null
+          sector?: string | null
+          slot_id: string
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          id?: string
+          interviewer_name?: string | null
+          sector?: string | null
+          slot_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slot_allocations_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       slots: {
         Row: {
           candidate_id: string | null
