@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { GoBackButton } from "@/components/navigation/GoBackButton";
 import { EditSlotDialog } from "@/components/slots/EditSlotDialog";
 import { SlotCard } from "@/components/slots/SlotCard";
+import { BulkAssignDialog } from "@/components/slots/BulkAssignDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Calendar, Clock, Settings, Layers } from "lucide-react";
+import { Calendar, Clock, Settings, Layers, Users } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 const EventoDetalle = () => {
@@ -35,6 +36,7 @@ const EventoDetalle = () => {
   const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
   const [editingSlot, setEditingSlot] = useState<Tables<"slots"> | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
 
   const isAdmin = hasRole("admin");
 
@@ -309,8 +311,19 @@ const EventoDetalle = () => {
         </Card>
       ) : slots && slots.length > 0 ? (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle>Slots del Evento</CardTitle>
+            {isAdmin && (
+              <Button
+                onClick={() => setBulkAssignOpen(true)}
+                variant="default"
+                size="sm"
+                className="gap-2"
+              >
+                <Users className="h-4 w-4" />
+                Asignar por Rango
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -349,6 +362,14 @@ const EventoDetalle = () => {
         eventId={id!}
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
+      />
+
+      {/* Bulk Assign Dialog */}
+      <BulkAssignDialog
+        open={bulkAssignOpen}
+        onOpenChange={setBulkAssignOpen}
+        eventId={id!}
+        slots={slots ?? []}
       />
 
       {/* Overwrite Confirmation Dialog */}
