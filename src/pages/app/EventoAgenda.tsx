@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building, User, Briefcase, Clock, CalendarDays } from "lucide-react";
 import { GoBackButton } from "@/components/navigation/GoBackButton";
+import { getStringColor, getContrastTextColor } from "@/lib/colorUtils";
 import type { Tables } from "@/integrations/supabase/types";
 
 // Type for slot with allocations
@@ -125,10 +126,10 @@ const EventoAgenda = () => {
         </Card>
       )}
 
-      {/* Slots list */}
-      <div className="space-y-3">
+      {/* Slots list - Using same grid layout as Admin view */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
+          Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-32 w-full" />
           ))
         ) : slots && slots.length > 0 ? (
@@ -136,7 +137,7 @@ const EventoAgenda = () => {
             <PublicSlotCard key={slot.id} slot={slot} />
           ))
         ) : (
-          <Card className="border bg-card">
+          <Card className="col-span-full border bg-card">
             <CardContent className="py-8 text-center">
               <Clock className="mx-auto h-8 w-8 text-muted-foreground/50" />
               <p className="mt-2 text-muted-foreground">No hay slots programados para este evento</p>
@@ -157,85 +158,104 @@ const EventoAgenda = () => {
 };
 
 // Read-only slot card component for public agenda view
+// Mirrors the Admin SlotCard design but without edit/delete actions
 const PublicSlotCard = ({ slot }: { slot: SlotWithAllocations }) => {
   const slotStart = new Date(slot.start_time);
   const slotEnd = new Date(slot.end_time);
   const hasAllocations = slot.allocations.length > 0;
 
   return (
-    <Card
-      className={`border transition-shadow hover:shadow-md ${
-        hasAllocations ? "border-primary/30 bg-primary/5" : "bg-card"
+    <div
+      className={`rounded-lg border p-3 transition-colors ${
+        hasAllocations
+          ? "border-primary/30 bg-primary/5"
+          : "border-border bg-card hover:bg-accent/50"
       }`}
     >
-      <CardContent className="p-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          {/* Time block */}
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-20 flex-col items-center justify-center rounded-lg bg-primary/10 text-center shrink-0">
-              <Clock className="mb-1 h-3.5 w-3.5 text-primary" />
-              <span className="text-xs font-semibold text-primary">
-                {format(slotStart, "HH:mm")}
-              </span>
-            </div>
-
-            {/* Slot details */}
-            <div className="flex-1 space-y-2">
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-foreground">
-                  {format(slotStart, "HH:mm")} - {format(slotEnd, "HH:mm")}
-                </p>
-                {hasAllocations && (
-                  <Badge variant="secondary" className="text-xs">
-                    {slot.allocations.length} empresa{slot.allocations.length > 1 ? "s" : ""}
-                  </Badge>
-                )}
-              </div>
-
-              {/* Allocations list or empty state */}
-              {hasAllocations ? (
-                <div className="space-y-2">
-                  {slot.allocations.map((allocation) => (
-                    <div
-                      key={allocation.id}
-                      className="rounded-md bg-background/80 border border-border/50 p-2.5"
-                    >
-                      {/* Company name */}
-                      <div className="flex items-center gap-1.5">
-                        <Building className="h-3.5 w-3.5 text-primary" />
-                        <span className="font-medium text-sm text-foreground">
-                          {allocation.company_name}
-                        </span>
-                      </div>
-
-                      {/* Sector and Interviewer */}
-                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                        {allocation.sector && (
-                          <Badge variant="outline" className="text-xs font-normal">
-                            <Briefcase className="mr-1 h-3 w-3" />
-                            {allocation.sector}
-                          </Badge>
-                        )}
-                        {allocation.interviewer_name && (
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <User className="h-3 w-3" />
-                            {allocation.interviewer_name}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">
-                  Disponible — sin empresas asignadas
-                </p>
-              )}
-            </div>
-          </div>
+      {/* Header: Time range (no actions in public view) */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <p className="font-semibold text-foreground">
+            {format(slotStart, "HH:mm")} - {format(slotEnd, "HH:mm")}
+          </p>
+          {hasAllocations && (
+            <Badge variant="secondary" className="text-xs">
+              {slot.allocations.length} empresa{slot.allocations.length > 1 ? "s" : ""}
+            </Badge>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Allocations list with deterministic pastel colors */}
+      <div className="space-y-2">
+        {hasAllocations ? (
+          <div className="space-y-1.5">
+            {slot.allocations.map((allocation, index) => {
+              // Generate deterministic pastel color from company name
+              const bgColor = getStringColor(allocation.company_name);
+              const textColor = getContrastTextColor();
+              
+              return (
+                <div
+                  key={allocation.id}
+                  className={`rounded-md p-2 transition-colors ${
+                    index < slot.allocations.length - 1 ? "border-b border-border/30" : ""
+                  }`}
+                  style={{ backgroundColor: bgColor }}
+                >
+                  {/* Company name */}
+                  <div className="flex items-center gap-1.5">
+                    <Building className="h-3.5 w-3.5" style={{ color: textColor }} />
+                    <span 
+                      className="font-medium text-sm"
+                      style={{ color: textColor }}
+                    >
+                      {allocation.company_name}
+                    </span>
+                  </div>
+
+                  {/* Sector and Interviewer */}
+                  <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                    {allocation.sector && (
+                      <Badge 
+                        variant="outline" 
+                        className="text-xs font-normal bg-background/60 border-border/40"
+                        style={{ color: textColor }}
+                      >
+                        <Briefcase className="mr-1 h-3 w-3" />
+                        {allocation.sector}
+                      </Badge>
+                    )}
+                    {allocation.interviewer_name && (
+                      <span 
+                        className="flex items-center gap-1 text-xs opacity-80"
+                        style={{ color: textColor }}
+                      >
+                        <User className="h-3 w-3" />
+                        {allocation.interviewer_name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">
+            Disponible — sin empresas asignadas
+          </p>
+        )}
+      </div>
+
+      {/* Allocation count badge */}
+      {hasAllocations && (
+        <div className="mt-2 pt-2 border-t border-border/50">
+          <span className="text-xs text-muted-foreground">
+            {slot.allocations.length} empresa{slot.allocations.length > 1 ? "s" : ""} asignada{slot.allocations.length > 1 ? "s" : ""}
+          </span>
+        </div>
+      )}
+    </div>
   );
 };
 

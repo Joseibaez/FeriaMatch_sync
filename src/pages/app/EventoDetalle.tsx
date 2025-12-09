@@ -316,7 +316,10 @@ const EventoDetalle = () => {
             <div className="flex items-center gap-2">
               {/* Manual refresh button */}
               <Button
-                onClick={() => refetchSlots()}
+                onClick={() => {
+                  console.log('Refreshing slots...');
+                  refetchSlots();
+                }}
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
