@@ -1,13 +1,98 @@
-import { User, Mail, Building2, Calendar } from "lucide-react";
+import { User, Mail, Building2, Calendar, Shield } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BackButton } from "@/components/navigation/BackButton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
-// Placeholder profile page
+// Profile page with real user data from Supabase
 const Perfil = () => {
+  const { user, userRole } = useAuth();
+
+  // Fetch profile data from profiles table
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Get initials for avatar
+  const getInitials = () => {
+    if (profile?.full_name) {
+      return profile.full_name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return user?.email?.[0]?.toUpperCase() || "U";
+  };
+
+  // Get role display label in Spanish
+  const getRoleLabel = () => {
+    switch (userRole) {
+      case "admin":
+        return "Administrador";
+      case "recruiter":
+        return "Reclutador";
+      case "candidate":
+        return "Candidato";
+      default:
+        return "Usuario";
+    }
+  };
+
+  // Get role badge variant
+  const getRoleBadgeVariant = () => {
+    switch (userRole) {
+      case "admin":
+        return "destructive";
+      case "recruiter":
+        return "default";
+      default:
+        return "secondary";
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <BackButton variant="dashboard" />
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+              <Skeleton className="h-20 w-20 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-4 w-60" />
+                <Skeleton className="h-5 w-24" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Back button */}
@@ -19,15 +104,20 @@ const Perfil = () => {
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
             <Avatar className="h-20 w-20">
               <AvatarFallback className="bg-primary/10 text-primary text-2xl font-semibold">
-                U
+                {getInitials()}
               </AvatarFallback>
             </Avatar>
             
             <div className="flex-1 text-center sm:text-left">
-              <h2 className="text-xl font-semibold text-foreground">Usuario Demo</h2>
-              <p className="text-muted-foreground">usuario@demo.com</p>
+              <h2 className="text-xl font-semibold text-foreground">
+                {profile?.full_name || "Sin nombre"}
+              </h2>
+              <p className="text-muted-foreground">{user?.email}</p>
               <div className="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
-                <Badge variant="secondary">Candidato</Badge>
+                <Badge variant={getRoleBadgeVariant()}>
+                  <Shield className="mr-1 h-3 w-3" />
+                  {getRoleLabel()}
+                </Badge>
               </div>
             </div>
 
@@ -55,7 +145,7 @@ const Perfil = () => {
               <Mail className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Email</p>
-                <p className="text-sm text-muted-foreground">usuario@demo.com</p>
+                <p className="text-sm text-muted-foreground">{user?.email}</p>
               </div>
             </div>
             <Separator />
@@ -63,7 +153,9 @@ const Perfil = () => {
               <Building2 className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Empresa</p>
-                <p className="text-sm text-muted-foreground">No especificada</p>
+                <p className="text-sm text-muted-foreground">
+                  {profile?.company_name || "No especificada"}
+                </p>
               </div>
             </div>
             <Separator />
@@ -71,7 +163,11 @@ const Perfil = () => {
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Miembro desde</p>
-                <p className="text-sm text-muted-foreground">Diciembre 2024</p>
+                <p className="text-sm text-muted-foreground">
+                  {profile?.created_at
+                    ? format(new Date(profile.created_at), "MMMM yyyy", { locale: es })
+                    : "—"}
+                </p>
               </div>
             </div>
           </CardContent>
