@@ -8,7 +8,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { DemoProvider } from "./contexts/DemoContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { OnboardingGuard } from "./components/auth/OnboardingGuard";
 import Auth from "./pages/Auth";
+import Onboarding from "./pages/Onboarding";
 
 // Pages
 import Index from "./pages/Index";
@@ -23,6 +25,8 @@ import EventoDetalle from "./pages/app/EventoDetalle";
 import EventoAgenda from "./pages/app/EventoAgenda";
 import Perfil from "./pages/app/Perfil";
 import Configuracion from "./pages/app/Configuracion";
+import CompanyDashboard from "./pages/app/CompanyDashboard";
+import AdminDashboard from "./pages/app/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -39,16 +43,32 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             
-            {/* Protected app routes with sidebar layout */}
+            {/* Onboarding route - protected but no onboarding check */}
+            <Route path="/onboarding" element={
+              <ProtectedRoute>
+                <Onboarding />
+              </ProtectedRoute>
+            } />
+            
+            {/* Protected app routes with sidebar layout and onboarding guard */}
             <Route path="/app" element={
               <ProtectedRoute>
-                <AppLayout />
+                <OnboardingGuard>
+                  <AppLayout />
+                </OnboardingGuard>
               </ProtectedRoute>
             }>
               <Route index element={<Dashboard />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="agenda/:eventId" element={<EventoAgenda />} />
               <Route path="agenda" element={<MiAgenda />} />
+              
+              {/* Admin routes */}
+              <Route path="admin" element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
               <Route path="eventos" element={
                 <ProtectedRoute requiredRole="admin">
                   <Eventos />
@@ -59,6 +79,14 @@ const App = () => (
                   <EventoDetalle />
                 </ProtectedRoute>
               } />
+              
+              {/* Company/Recruiter routes */}
+              <Route path="empresa" element={
+                <ProtectedRoute requiredRole="recruiter">
+                  <CompanyDashboard />
+                </ProtectedRoute>
+              } />
+              
               <Route path="perfil" element={<Perfil />} />
               <Route path="configuracion" element={<Configuracion />} />
             </Route>
