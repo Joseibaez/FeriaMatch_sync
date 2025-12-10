@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Building2, Clock, Users } from "lucide-react";
+import { Building2, Clock, Users, MapPin } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface BulkAssignDialogProps {
@@ -45,6 +45,7 @@ export const BulkAssignDialog = ({
   const [companyName, setCompanyName] = useState("");
   const [sector, setSector] = useState("");
   const [interviewerName, setInterviewerName] = useState("");
+  const [standNumber, setStandNumber] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
 
@@ -94,6 +95,7 @@ export const BulkAssignDialog = ({
         company_name: companyName.trim(),
         sector: sector.trim() || null,
         interviewer_name: interviewerName.trim() || null,
+        stand_number: standNumber.trim() || null,
       }));
 
       const { error } = await supabase.from("slot_allocations").insert(allocations);
@@ -129,6 +131,7 @@ export const BulkAssignDialog = ({
     setCompanyName("");
     setSector("");
     setInterviewerName("");
+    setStandNumber("");
     setStartTime("");
     setEndTime("");
   };
@@ -200,6 +203,19 @@ export const BulkAssignDialog = ({
                     placeholder="Ej: María García"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="standNumber" className="flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" />
+                  Número de Stand
+                </Label>
+                <Input
+                  id="standNumber"
+                  value={standNumber}
+                  onChange={(e) => setStandNumber(e.target.value)}
+                  placeholder="Ej: A-15"
+                />
               </div>
             </div>
           </div>

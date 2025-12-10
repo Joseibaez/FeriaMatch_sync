@@ -25,7 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Building, Plus, Trash2, User } from "lucide-react";
+import { Clock, Building, Plus, Trash2, User, MapPin } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 // Validation schema for adding a company allocation
@@ -33,6 +33,7 @@ const addAllocationSchema = z.object({
   company_name: z.string().min(1, "El nombre de la empresa es requerido"),
   sector: z.string().optional(),
   interviewer_name: z.string().optional(),
+  stand_number: z.string().optional(),
 });
 
 type AddAllocationFormValues = z.infer<typeof addAllocationSchema>;
@@ -55,6 +56,7 @@ export function EditSlotDialog({ slot, eventId, open, onOpenChange }: EditSlotDi
       company_name: "",
       sector: "",
       interviewer_name: "",
+      stand_number: "",
     },
   });
 
@@ -87,6 +89,7 @@ export function EditSlotDialog({ slot, eventId, open, onOpenChange }: EditSlotDi
           company_name: values.company_name,
           sector: values.sector || null,
           interviewer_name: values.interviewer_name || null,
+          stand_number: values.stand_number || null,
         });
 
       if (error) throw error;
@@ -246,6 +249,20 @@ export function EditSlotDialog({ slot, eventId, open, onOpenChange }: EditSlotDi
                   )}
                 />
 
+                <FormField
+                  control={form.control}
+                  name="stand_number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Número de Stand</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ej: A-15" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <div className="flex gap-2 pt-2">
                   <Button
                     type="button"
@@ -294,6 +311,12 @@ export function EditSlotDialog({ slot, eventId, open, onOpenChange }: EditSlotDi
                         <Badge variant="outline" className="text-xs">
                           <User className="h-3 w-3 mr-1" />
                           {allocation.interviewer_name}
+                        </Badge>
+                      )}
+                      {allocation.stand_number && (
+                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                          <MapPin className="h-3 w-3 mr-1" />
+                          Stand {allocation.stand_number}
                         </Badge>
                       )}
                     </div>
