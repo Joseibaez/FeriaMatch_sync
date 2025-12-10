@@ -9,10 +9,12 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   userRole: AppRole | null;
+  isOnboarded: boolean | null;
   signUp: (email: string, password: string, fullName: string, companyName?: string, role?: 'candidate' | 'recruiter') => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   hasRole: (role: AppRole) => boolean;
+  refreshOnboardingStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
+  const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -30,13 +33,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer role fetching to avoid deadlock
+        // Defer data fetching to avoid deadlock
         if (session?.user) {
           setTimeout(() => {
-            fetchUserRole(session.user.id);
+            fetchUserData(session.user.id);
           }, 0);
         } else {
           setUserRole(null);
+          setIsOnboarded(null);
         }
       }
     );
@@ -46,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserRole(session.user.id);
+        fetchUserData(session.user.id);
       }
       setLoading(false);
     });
@@ -54,16 +58,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserRole = async (userId: string) => {
-    const { data, error } = await supabase
+  const fetchUserData = async (userId: string) => {
+    // Fetch role
+    const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
       .maybeSingle();
     
-    if (!error && data) {
-      setUserRole(data.role as AppRole);
+    if (roleData) {
+      setUserRole(roleData.role as AppRole);
     }
+
+    // Fetch onboarding status
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('is_onboarded')
+      .eq('id', userId)
+      .maybeSingle();
+    
+    setIsOnboarded(profileData?.is_onboarded ?? false);
+  };
+
+  const refreshOnboardingStatus = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('profiles')
+      .select('is_onboarded')
+      .eq('id', user.id)
+      .maybeSingle();
+    
+    setIsOnboarded(data?.is_onboarded ?? false);
   };
 
   const signUp = async (
@@ -83,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: {
           full_name: fullName,
           company_name: companyName,
-          role: role, // Pass role to trigger function
+          role: role,
         }
       }
     });
@@ -103,6 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setUserRole(null);
+    setIsOnboarded(null);
   };
 
   const hasRole = (role: AppRole): boolean => {
@@ -115,10 +142,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       loading,
       userRole,
+      isOnboarded,
       signUp,
       signIn,
       signOut,
       hasRole,
+      refreshOnboardingStatus,
     }}>
       {children}
     </AuthContext.Provider>

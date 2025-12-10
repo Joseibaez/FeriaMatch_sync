@@ -80,23 +80,38 @@ export type Database = {
         Row: {
           company_name: string | null
           created_at: string
+          cv_url: string | null
           email: string
           full_name: string | null
           id: string
+          is_onboarded: boolean
+          linkedin_url: string | null
+          phone: string | null
+          website: string | null
         }
         Insert: {
           company_name?: string | null
           created_at?: string
+          cv_url?: string | null
           email: string
           full_name?: string | null
           id: string
+          is_onboarded?: boolean
+          linkedin_url?: string | null
+          phone?: string | null
+          website?: string | null
         }
         Update: {
           company_name?: string | null
           created_at?: string
+          cv_url?: string | null
           email?: string
           full_name?: string | null
           id?: string
+          is_onboarded?: boolean
+          linkedin_url?: string | null
+          phone?: string | null
+          website?: string | null
         }
         Relationships: []
       }

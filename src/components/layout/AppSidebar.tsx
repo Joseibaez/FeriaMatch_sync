@@ -44,7 +44,19 @@ const navigationItems: NavItem[] = [
     title: "Dashboard", 
     url: "/app", 
     icon: LayoutDashboard,
-    roles: ['admin', 'recruiter', 'candidate']
+    roles: ['candidate']
+  },
+  { 
+    title: "Panel Admin", 
+    url: "/app/admin", 
+    icon: LayoutDashboard,
+    roles: ['admin']
+  },
+  { 
+    title: "Panel Empresa", 
+    url: "/app/empresa", 
+    icon: Building2,
+    roles: ['recruiter']
   },
   { 
     title: "Mi Agenda", 
