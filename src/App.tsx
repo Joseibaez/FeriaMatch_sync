@@ -27,6 +27,7 @@ import Perfil from "./pages/app/Perfil";
 import Configuracion from "./pages/app/Configuracion";
 import CompanyDashboard from "./pages/app/CompanyDashboard";
 import AdminDashboard from "./pages/app/AdminDashboard";
+import AdminUsers from "./pages/app/AdminUsers";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +68,11 @@ const App = () => (
               <Route path="admin" element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="usuarios" element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminUsers />
                 </ProtectedRoute>
               } />
               <Route path="eventos" element={
