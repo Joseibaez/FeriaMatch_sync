@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building, User, Pencil, Trash2, Briefcase } from "lucide-react";
+import { Building, User, Pencil, Trash2, Briefcase, MapPin } from "lucide-react";
 import { getStringColor, getContrastTextColor } from "@/lib/colorUtils";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -109,15 +109,26 @@ export const SlotCard = ({ slot, isAdmin, onEdit, onDelete, isDeleting }: SlotCa
                   }`}
                   style={{ backgroundColor: bgColor }}
                 >
-                  {/* Company name */}
-                  <div className="flex items-center gap-1.5">
-                    <Building className="h-3.5 w-3.5" style={{ color: textColor }} />
-                    <span 
-                      className="font-medium text-sm"
-                      style={{ color: textColor }}
-                    >
-                      {allocation.company_name}
-                    </span>
+                  {/* Company name and stand */}
+                  <div className="flex items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Building className="h-3.5 w-3.5" style={{ color: textColor }} />
+                      <span 
+                        className="font-medium text-sm"
+                        style={{ color: textColor }}
+                      >
+                        {allocation.company_name}
+                      </span>
+                    </div>
+                    {allocation.stand_number && (
+                      <Badge 
+                        variant="outline" 
+                        className="text-xs font-medium bg-background/80 border-border/50"
+                      >
+                        <MapPin className="mr-1 h-3 w-3" />
+                        Stand {allocation.stand_number}
+                      </Badge>
+                    )}
                   </div>
 
                   {/* Sector and Interviewer */}

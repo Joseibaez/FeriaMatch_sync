@@ -123,6 +123,7 @@ export type Database = {
           interviewer_name: string | null
           sector: string | null
           slot_id: string
+          stand_number: string | null
         }
         Insert: {
           company_name: string
@@ -131,6 +132,7 @@ export type Database = {
           interviewer_name?: string | null
           sector?: string | null
           slot_id: string
+          stand_number?: string | null
         }
         Update: {
           company_name?: string
@@ -139,6 +141,7 @@ export type Database = {
           interviewer_name?: string | null
           sector?: string | null
           slot_id?: string
+          stand_number?: string | null
         }
         Relationships: [
           {

@@ -1,15 +1,32 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Calendar, Clock, Users, Building2, MoreVertical } from "lucide-react";
+import { Plus, Calendar, Clock, Users, Building2, MoreVertical, Trash2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { CreateEventDialog } from "@/components/events/CreateEventDialog";
 import { EmptyEventsState } from "@/components/events/EmptyEventsState";
@@ -40,7 +57,10 @@ const formatTime = (time: string) => time.slice(0, 5);
 // Eventos page - Admin view for managing job fair events
 const Eventos = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [deleteEventId, setDeleteEventId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: events, isLoading, refetch } = useQuery({
     queryKey: ["events"],
@@ -58,6 +78,62 @@ const Eventos = () => {
   const handleCreateSuccess = () => {
     refetch();
   };
+
+  // Delete event mutation - cascades to slots and allocations
+  const deleteEventMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      // First delete all bookings for slots of this event
+      const { data: slots } = await supabase
+        .from("slots")
+        .select("id")
+        .eq("event_id", eventId);
+
+      if (slots && slots.length > 0) {
+        const slotIds = slots.map(s => s.id);
+        
+        // Delete slot allocations
+        await supabase
+          .from("slot_allocations")
+          .delete()
+          .in("slot_id", slotIds);
+        
+        // Delete bookings
+        await supabase
+          .from("bookings")
+          .delete()
+          .in("slot_allocation_id", slotIds);
+      }
+
+      // Delete slots
+      await supabase
+        .from("slots")
+        .delete()
+        .eq("event_id", eventId);
+
+      // Finally delete the event
+      const { error } = await supabase
+        .from("events")
+        .delete()
+        .eq("id", eventId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      toast({
+        title: "Evento eliminado",
+        description: "El evento y todos sus datos han sido eliminados.",
+      });
+      setDeleteEventId(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   if (isLoading) {
     return (
@@ -133,9 +209,22 @@ const Eventos = () => {
                         >
                           {estadoBadge[status].label}
                         </Badge>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeleteEventId(evento.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Eliminar evento
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   </CardHeader>
@@ -215,6 +304,28 @@ const Eventos = () => {
         onOpenChange={setIsCreateDialogOpen}
         onSuccess={handleCreateSuccess}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteEventId} onOpenChange={(open) => !open && setDeleteEventId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este evento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente el evento junto con todos sus slots, 
+              asignaciones de empresas y reservas de candidatos. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteEventId && deleteEventMutation.mutate(deleteEventId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteEventMutation.isPending ? "Eliminando..." : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
