@@ -7,16 +7,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Building, User, Briefcase, Clock, CalendarDays, CheckCircle, Loader2 } from "lucide-react";
+import { Building, User, Briefcase, Clock, CalendarDays, CheckCircle, Loader2, Users } from "lucide-react";
 import { GoBackButton } from "@/components/navigation/GoBackButton";
 import { getStringColor, getContrastTextColor } from "@/lib/colorUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
-// Type for slot with allocations and user bookings
+const MAX_CAPACITY = 2;
+
+// Type for allocation with booking count
+type AllocationWithBookings = Tables<"slot_allocations"> & {
+  bookingCount: number;
+  isBooked: boolean;
+};
+
+// Type for slot with allocations
 type SlotWithAllocations = Tables<"slots"> & {
-  allocations: (Tables<"slot_allocations"> & { isBooked?: boolean })[];
+  allocations: AllocationWithBookings[];
 };
 
 // Public agenda page for a specific event - read-only view
@@ -56,7 +64,7 @@ const EventoAgenda = () => {
     },
   });
 
-  // Fetch slots for this specific event with their allocations
+  // Fetch slots with allocations and booking counts
   const { data: slots, isLoading: slotsLoading } = useQuery({
     queryKey: ["event-slots-agenda", eventId],
     enabled: !!eventId,
@@ -82,10 +90,33 @@ const EventoAgenda = () => {
 
       if (allocationsError) throw allocationsError;
 
-      // Combine slots with their allocations
+      // Fetch all bookings for these allocations to get counts
+      const allocationIds = allocationsData?.map((a) => a.id) || [];
+      let bookingCounts: Record<string, number> = {};
+      
+      if (allocationIds.length > 0) {
+        const { data: bookingsData, error: bookingsError } = await supabase
+          .from("bookings")
+          .select("slot_allocation_id")
+          .in("slot_allocation_id", allocationIds);
+
+        if (bookingsError) throw bookingsError;
+
+        // Count bookings per allocation
+        bookingCounts = (bookingsData || []).reduce((acc, booking) => {
+          acc[booking.slot_allocation_id] = (acc[booking.slot_allocation_id] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+      }
+
+      // Combine slots with their allocations and booking counts
       const slotsWithAllocations: SlotWithAllocations[] = slotsData.map((slot) => ({
         ...slot,
-        allocations: allocationsData?.filter((a) => a.slot_id === slot.id) || [],
+        allocations: (allocationsData?.filter((a) => a.slot_id === slot.id) || []).map((allocation) => ({
+          ...allocation,
+          bookingCount: bookingCounts[allocation.id] || 0,
+          isBooked: false, // Will be set later with user bookings
+        })),
       }));
 
       return slotsWithAllocations;
@@ -107,6 +138,7 @@ const EventoAgenda = () => {
     onSuccess: () => {
       toast.success("Reserva confirmada");
       queryClient.invalidateQueries({ queryKey: ["user-bookings", eventId, user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["event-slots-agenda", eventId] });
     },
     onError: (error: Error) => {
       if (error.message.includes("duplicate")) {
@@ -219,7 +251,6 @@ const EventoAgenda = () => {
 };
 
 // Read-only slot card component for public agenda view
-// Mirrors the Admin SlotCard design but without edit/delete actions
 interface PublicSlotCardProps {
   slot: SlotWithAllocations;
   canBook: boolean;
@@ -241,7 +272,7 @@ const PublicSlotCard = ({ slot, canBook, onBook, isBooking, bookingAllocationId 
           : "border-border bg-card hover:bg-accent/50"
       }`}
     >
-      {/* Header: Time range (no actions in public view) */}
+      {/* Header: Time range */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <p className="font-semibold text-foreground">
@@ -260,10 +291,11 @@ const PublicSlotCard = ({ slot, canBook, onBook, isBooking, bookingAllocationId 
         {hasAllocations ? (
           <div className="space-y-1.5">
             {slot.allocations.map((allocation, index) => {
-              // Generate deterministic pastel color from company name
               const bgColor = getStringColor(allocation.company_name);
               const textColor = getContrastTextColor();
               const isCurrentlyBooking = isBooking && bookingAllocationId === allocation.id;
+              const isFull = allocation.bookingCount >= MAX_CAPACITY;
+              const spotsLeft = MAX_CAPACITY - allocation.bookingCount;
               
               return (
                 <div
@@ -273,7 +305,7 @@ const PublicSlotCard = ({ slot, canBook, onBook, isBooking, bookingAllocationId 
                   }`}
                   style={{ backgroundColor: bgColor }}
                 >
-                  {/* Company name */}
+                  {/* Company name and availability badge */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
                       <Building className="h-3.5 w-3.5" style={{ color: textColor }} />
@@ -285,32 +317,18 @@ const PublicSlotCard = ({ slot, canBook, onBook, isBooking, bookingAllocationId 
                       </span>
                     </div>
 
-                    {/* Booking button - only for logged-in candidates */}
-                    {canBook && (
-                      allocation.isBooked ? (
-                        <Badge 
-                          variant="secondary" 
-                          className="bg-green-100 text-green-800 border-green-200 gap-1"
-                        >
-                          <CheckCircle className="h-3 w-3" />
-                          Reservado
-                        </Badge>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="h-6 text-xs px-2 bg-background/80 hover:bg-background"
-                          onClick={() => onBook(allocation.id)}
-                          disabled={isCurrentlyBooking}
-                        >
-                          {isCurrentlyBooking ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            "Reservar"
-                          )}
-                        </Button>
-                      )
-                    )}
+                    {/* Availability badge */}
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs gap-1 ${
+                        isFull 
+                          ? "bg-red-100 text-red-700 border-red-200" 
+                          : "bg-background/80 border-border/50"
+                      }`}
+                    >
+                      <Users className="h-3 w-3" />
+                      {allocation.bookingCount}/{MAX_CAPACITY}
+                    </Badge>
                   </div>
 
                   {/* Sector and Interviewer */}
@@ -335,6 +353,47 @@ const PublicSlotCard = ({ slot, canBook, onBook, isBooking, bookingAllocationId 
                       </span>
                     )}
                   </div>
+
+                  {/* Booking button - only for logged-in candidates */}
+                  {canBook && (
+                    <div className="mt-2 pt-2 border-t border-border/30">
+                      {allocation.isBooked ? (
+                        <Badge 
+                          variant="secondary" 
+                          className="bg-green-100 text-green-800 border-green-200 gap-1"
+                        >
+                          <CheckCircle className="h-3 w-3" />
+                          Reservado
+                        </Badge>
+                      ) : isFull ? (
+                        <Badge 
+                          variant="secondary" 
+                          className="bg-red-100 text-red-700 border-red-200"
+                        >
+                          Completo
+                        </Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 text-xs px-3 bg-background/80 hover:bg-background gap-1"
+                          onClick={() => onBook(allocation.id)}
+                          disabled={isCurrentlyBooking}
+                        >
+                          {isCurrentlyBooking ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <>
+                              Reservar
+                              <span className="text-muted-foreground">
+                                ({spotsLeft} hueco{spotsLeft > 1 ? "s" : ""})
+                              </span>
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
