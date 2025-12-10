@@ -1,24 +1,29 @@
 import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building, User, Briefcase, Clock, CalendarDays } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Building, User, Briefcase, Clock, CalendarDays, CheckCircle, Loader2 } from "lucide-react";
 import { GoBackButton } from "@/components/navigation/GoBackButton";
 import { getStringColor, getContrastTextColor } from "@/lib/colorUtils";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
-// Type for slot with allocations
+// Type for slot with allocations and user bookings
 type SlotWithAllocations = Tables<"slots"> & {
-  allocations: Tables<"slot_allocations">[];
+  allocations: (Tables<"slot_allocations"> & { isBooked?: boolean })[];
 };
 
 // Public agenda page for a specific event - read-only view
 const EventoAgenda = () => {
   const { eventId } = useParams<{ eventId: string }>();
+  const { user, userRole } = useAuth();
+  const queryClient = useQueryClient();
 
   // Fetch event details
   const { data: event, isLoading: eventLoading } = useQuery({
@@ -33,6 +38,21 @@ const EventoAgenda = () => {
 
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Fetch user's existing bookings for this event
+  const { data: userBookings } = useQuery({
+    queryKey: ["user-bookings", eventId, user?.id],
+    enabled: !!eventId && !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("slot_allocation_id")
+        .eq("user_id", user!.id);
+
+      if (error) throw error;
+      return data?.map((b) => b.slot_allocation_id) || [];
     },
   });
 
@@ -71,6 +91,40 @@ const EventoAgenda = () => {
       return slotsWithAllocations;
     },
   });
+
+  // Mutation for creating a booking
+  const bookMutation = useMutation({
+    mutationFn: async (slotAllocationId: string) => {
+      const { error } = await supabase
+        .from("bookings")
+        .insert({
+          user_id: user!.id,
+          slot_allocation_id: slotAllocationId,
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Reserva confirmada");
+      queryClient.invalidateQueries({ queryKey: ["user-bookings", eventId, user?.id] });
+    },
+    onError: (error: Error) => {
+      if (error.message.includes("duplicate")) {
+        toast.error("Ya tienes una reserva con esta empresa");
+      } else {
+        toast.error("Error al realizar la reserva");
+      }
+    },
+  });
+
+  // Mark allocations that user has already booked
+  const slotsWithBookingStatus = slots?.map((slot) => ({
+    ...slot,
+    allocations: slot.allocations.map((allocation) => ({
+      ...allocation,
+      isBooked: userBookings?.includes(allocation.id) || false,
+    })),
+  }));
 
   const isLoading = eventLoading || slotsLoading;
 
@@ -132,9 +186,16 @@ const EventoAgenda = () => {
           Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-32 w-full" />
           ))
-        ) : slots && slots.length > 0 ? (
-          slots.map((slot) => (
-            <PublicSlotCard key={slot.id} slot={slot} />
+        ) : slotsWithBookingStatus && slotsWithBookingStatus.length > 0 ? (
+          slotsWithBookingStatus.map((slot) => (
+            <PublicSlotCard 
+              key={slot.id} 
+              slot={slot} 
+              canBook={!!user && userRole === 'candidate'}
+              onBook={(allocationId) => bookMutation.mutate(allocationId)}
+              isBooking={bookMutation.isPending}
+              bookingAllocationId={bookMutation.variables}
+            />
           ))
         ) : (
           <Card className="col-span-full border bg-card">
@@ -159,7 +220,15 @@ const EventoAgenda = () => {
 
 // Read-only slot card component for public agenda view
 // Mirrors the Admin SlotCard design but without edit/delete actions
-const PublicSlotCard = ({ slot }: { slot: SlotWithAllocations }) => {
+interface PublicSlotCardProps {
+  slot: SlotWithAllocations;
+  canBook: boolean;
+  onBook: (allocationId: string) => void;
+  isBooking: boolean;
+  bookingAllocationId?: string;
+}
+
+const PublicSlotCard = ({ slot, canBook, onBook, isBooking, bookingAllocationId }: PublicSlotCardProps) => {
   const slotStart = new Date(slot.start_time);
   const slotEnd = new Date(slot.end_time);
   const hasAllocations = slot.allocations.length > 0;
@@ -194,6 +263,7 @@ const PublicSlotCard = ({ slot }: { slot: SlotWithAllocations }) => {
               // Generate deterministic pastel color from company name
               const bgColor = getStringColor(allocation.company_name);
               const textColor = getContrastTextColor();
+              const isCurrentlyBooking = isBooking && bookingAllocationId === allocation.id;
               
               return (
                 <div
@@ -204,14 +274,43 @@ const PublicSlotCard = ({ slot }: { slot: SlotWithAllocations }) => {
                   style={{ backgroundColor: bgColor }}
                 >
                   {/* Company name */}
-                  <div className="flex items-center gap-1.5">
-                    <Building className="h-3.5 w-3.5" style={{ color: textColor }} />
-                    <span 
-                      className="font-medium text-sm"
-                      style={{ color: textColor }}
-                    >
-                      {allocation.company_name}
-                    </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <Building className="h-3.5 w-3.5" style={{ color: textColor }} />
+                      <span 
+                        className="font-medium text-sm"
+                        style={{ color: textColor }}
+                      >
+                        {allocation.company_name}
+                      </span>
+                    </div>
+
+                    {/* Booking button - only for logged-in candidates */}
+                    {canBook && (
+                      allocation.isBooked ? (
+                        <Badge 
+                          variant="secondary" 
+                          className="bg-green-100 text-green-800 border-green-200 gap-1"
+                        >
+                          <CheckCircle className="h-3 w-3" />
+                          Reservado
+                        </Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-6 text-xs px-2 bg-background/80 hover:bg-background"
+                          onClick={() => onBook(allocation.id)}
+                          disabled={isCurrentlyBooking}
+                        >
+                          {isCurrentlyBooking ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            "Reservar"
+                          )}
+                        </Button>
+                      )
+                    )}
                   </div>
 
                   {/* Sector and Interviewer */}
