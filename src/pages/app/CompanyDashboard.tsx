@@ -44,7 +44,7 @@ interface SlotAllocationWithBooking {
 export default function CompanyDashboard() {
   const { user } = useAuth();
 
-  // Fetch the recruiter's profile to get company_name
+  // Fetch the recruiter's profile to get company_name and sector
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['recruiter-profile', user?.id],
     queryFn: async () => {
@@ -58,6 +58,26 @@ export default function CompanyDashboard() {
       return data;
     },
     enabled: !!user?.id,
+  });
+
+  // Fetch sector from the company's previous allocations (if any)
+  const { data: companySector } = useQuery({
+    queryKey: ['company-sector', profile?.company_name],
+    queryFn: async () => {
+      if (!profile?.company_name) return null;
+      
+      const { data, error } = await supabase
+        .from('slot_allocations')
+        .select('sector')
+        .eq('company_name', profile.company_name)
+        .not('sector', 'is', null)
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data?.sector || null;
+    },
+    enabled: !!profile?.company_name,
   });
 
   // Fetch slot allocations for the company with bookings and candidate info
@@ -265,7 +285,7 @@ export default function CompanyDashboard() {
           </p>
         </div>
 
-        <AvailableEventsSection companyName={profile.company_name} />
+        <AvailableEventsSection companyName={profile.company_name} companySector={companySector} />
 
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -346,7 +366,7 @@ export default function CompanyDashboard() {
       </div>
 
       {/* Available Events Section */}
-      <AvailableEventsSection companyName={profile.company_name} />
+      <AvailableEventsSection companyName={profile.company_name} companySector={companySector} />
 
       {/* My Slots Grid by Event */}
       <div>
