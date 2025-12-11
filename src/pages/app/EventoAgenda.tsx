@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Building, User, Briefcase, Clock, CalendarDays, CheckCircle, Loader2, Users } from "lucide-react";
+import { Building, User, Briefcase, Clock, CalendarDays, CheckCircle, Loader2, Users, AlertCircle } from "lucide-react";
 import { GoBackButton } from "@/components/navigation/GoBackButton";
 import { getStringColor, getContrastTextColor } from "@/lib/colorUtils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,7 @@ const MAX_CAPACITY = 2;
 type AllocationWithBookings = Tables<"slot_allocations"> & {
   bookingCount: number;
   isBooked: boolean;
+  bookingStatus: string | null; // 'pending' | 'confirmed' | 'rejected' | null
 };
 
 // Type for slot with allocations
@@ -49,7 +50,7 @@ const EventoAgenda = () => {
     },
   });
 
-  // Fetch user's existing bookings for this event with slot times for overlap check
+  // Fetch user's existing bookings for this event with slot times and status for overlap check
   const { data: userBookingsData } = useQuery({
     queryKey: ["user-bookings-full", user?.id],
     enabled: !!user,
@@ -57,11 +58,11 @@ const EventoAgenda = () => {
       // Get all user bookings
       const { data: bookings, error: bookingsError } = await supabase
         .from("bookings")
-        .select("id, slot_allocation_id")
+        .select("id, slot_allocation_id, status")
         .eq("user_id", user!.id);
 
       if (bookingsError) throw bookingsError;
-      if (!bookings || bookings.length === 0) return { bookingIds: [], bookingsWithSlots: [] };
+      if (!bookings || bookings.length === 0) return { bookingIds: [], bookingsWithSlots: [], bookingStatuses: {} };
 
       // Get slot allocations for these bookings
       const allocationIds = bookings.map((b) => b.slot_allocation_id);
@@ -81,6 +82,12 @@ const EventoAgenda = () => {
 
       if (slotsError) throw slotsError;
 
+      // Create booking status map
+      const bookingStatuses: Record<string, string> = {};
+      bookings.forEach((booking) => {
+        bookingStatuses[booking.slot_allocation_id] = booking.status;
+      });
+
       // Combine bookings with their slot times
       const bookingsWithSlots = bookings.map((booking) => {
         const allocation = allocations?.find((a) => a.id === booking.slot_allocation_id);
@@ -91,17 +98,20 @@ const EventoAgenda = () => {
           slotId: allocation?.slot_id,
           startTime: slot?.start_time,
           endTime: slot?.end_time,
+          status: booking.status,
         };
       });
 
       return {
         bookingIds: bookings.map((b) => b.slot_allocation_id),
         bookingsWithSlots,
+        bookingStatuses,
       };
     },
   });
 
   const userBookings = userBookingsData?.bookingIds || [];
+  const bookingStatuses = userBookingsData?.bookingStatuses || {};
 
   // Fetch slots with allocations and booking counts
   const { data: slots, isLoading: slotsLoading } = useQuery({
@@ -129,15 +139,16 @@ const EventoAgenda = () => {
 
       if (allocationsError) throw allocationsError;
 
-      // Fetch all bookings for these allocations to get counts
+      // Fetch all bookings for these allocations to get counts (only count confirmed for capacity)
       const allocationIds = allocationsData?.map((a) => a.id) || [];
       let bookingCounts: Record<string, number> = {};
       
       if (allocationIds.length > 0) {
         const { data: bookingsData, error: bookingsError } = await supabase
           .from("bookings")
-          .select("slot_allocation_id")
-          .in("slot_allocation_id", allocationIds);
+          .select("slot_allocation_id, status")
+          .in("slot_allocation_id", allocationIds)
+          .in("status", ["confirmed", "pending"]); // Count both confirmed and pending for capacity
 
         if (bookingsError) throw bookingsError;
 
@@ -155,6 +166,7 @@ const EventoAgenda = () => {
           ...allocation,
           bookingCount: bookingCounts[allocation.id] || 0,
           isBooked: false, // Will be set later with user bookings
+          bookingStatus: null,
         })),
       }));
 
@@ -177,7 +189,7 @@ const EventoAgenda = () => {
     return s1 < e2 && s2 < e1;
   };
 
-  // Mutation for creating a booking with overlap check
+  // Mutation for creating a booking request (status = 'pending')
   const bookMutation = useMutation({
     mutationFn: async (slotAllocationId: string) => {
       // First, get the slot time for the allocation being booked
@@ -197,8 +209,10 @@ const EventoAgenda = () => {
 
       if (slotError) throw new Error("No se pudo obtener el horario del slot");
 
-      // Check for overlapping bookings
-      const existingBookings = userBookingsData?.bookingsWithSlots || [];
+      // Check for overlapping bookings (only check pending and confirmed)
+      const existingBookings = userBookingsData?.bookingsWithSlots.filter(
+        (b) => b.status === 'pending' || b.status === 'confirmed'
+      ) || [];
       const hasOverlap = existingBookings.some((booking) => {
         if (!booking.startTime || !booking.endTime) return false;
         return checkTimeOverlap(
@@ -213,12 +227,13 @@ const EventoAgenda = () => {
         throw new Error("OVERLAP");
       }
 
-      // No overlap, proceed with booking
+      // No overlap, proceed with booking request (status = 'pending')
       const { error } = await supabase
         .from("bookings")
         .insert({
           user_id: user!.id,
           slot_allocation_id: slotAllocationId,
+          status: 'pending', // NEW: Insert as pending instead of confirmed
         });
 
       if (error) throw error;
@@ -230,53 +245,63 @@ const EventoAgenda = () => {
       };
     },
     onSuccess: async (data) => {
-      toast.success("Reserva confirmada. Te hemos enviado un email.");
+      toast.success("Solicitud enviada. La empresa revisará tu solicitud.");
       queryClient.invalidateQueries({ queryKey: ["user-bookings-full", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["event-slots-agenda", eventId] });
 
-      // Send confirmation email
+      // Send notification email to company
       try {
-        // Get user profile for name and email
+        // Get user profile for name, email and CV
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name, email")
+          .select("full_name, email, cv_url")
           .eq("id", user!.id)
           .single();
 
-        if (profile && event && data) {
+        // Get company recruiter email
+        const { data: companyProfiles } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("company_name", data.companyName)
+          .limit(1);
+
+        if (profile && event && data && companyProfiles && companyProfiles.length > 0) {
           const slotDate = new Date(data.slotStart);
           await supabase.functions.invoke("send-booking-email", {
             body: {
+              type: "request_to_company",
+              companyEmail: companyProfiles[0].email,
               candidateName: profile.full_name || "Candidato",
               candidateEmail: profile.email,
-              companyName: data.companyName,
+              candidateCvUrl: profile.cv_url,
               date: format(new Date(event.event_date), "EEEE d 'de' MMMM, yyyy", { locale: es }),
               time: format(slotDate, "HH:mm"),
             },
           });
         }
       } catch (emailError) {
-        console.error("Error sending confirmation email:", emailError);
-        // Don't show error to user - booking was successful
+        console.error("Error sending notification email:", emailError);
+        // Don't show error to user - booking request was successful
       }
     },
     onError: (error: Error) => {
       if (error.message === "OVERLAP") {
         toast.error("Ya tienes otra entrevista programada en este horario");
       } else if (error.message.includes("duplicate")) {
-        toast.error("Ya tienes una reserva con esta empresa");
+        toast.error("Ya tienes una solicitud con esta empresa");
       } else {
-        toast.error("Error al realizar la reserva");
+        toast.error("Error al enviar la solicitud");
       }
     },
   });
 
-  // Mark allocations that user has already booked
+  // Mark allocations that user has already booked and their status
   const slotsWithBookingStatus = slots?.map((slot) => ({
     ...slot,
     allocations: slot.allocations.map((allocation) => ({
       ...allocation,
       isBooked: userBookings?.includes(allocation.id) || false,
+      bookingStatus: bookingStatuses[allocation.id] || null,
     })),
   }));
 
@@ -480,13 +505,39 @@ const PublicSlotCard = ({ slot, canBook, onBook, isBooking, bookingAllocationId 
                   {canBook && (
                     <div className="mt-2 pt-2 border-t border-border/30">
                       {allocation.isBooked ? (
-                        <Badge 
-                          variant="secondary" 
-                          className="bg-green-100 text-green-800 border-green-200 gap-1"
-                        >
-                          <CheckCircle className="h-3 w-3" />
-                          Reservado
-                        </Badge>
+                        // User has a booking - show status
+                        allocation.bookingStatus === 'pending' ? (
+                          <Badge 
+                            variant="secondary" 
+                            className="bg-yellow-100 text-yellow-800 border-yellow-200 gap-1"
+                          >
+                            <AlertCircle className="h-3 w-3" />
+                            Solicitud Pendiente
+                          </Badge>
+                        ) : allocation.bookingStatus === 'confirmed' ? (
+                          <Badge 
+                            variant="secondary" 
+                            className="bg-green-100 text-green-800 border-green-200 gap-1"
+                          >
+                            <CheckCircle className="h-3 w-3" />
+                            Confirmado
+                          </Badge>
+                        ) : allocation.bookingStatus === 'rejected' ? (
+                          <Badge 
+                            variant="secondary" 
+                            className="bg-red-100 text-red-800 border-red-200 gap-1"
+                          >
+                            Rechazado
+                          </Badge>
+                        ) : (
+                          <Badge 
+                            variant="secondary" 
+                            className="bg-green-100 text-green-800 border-green-200 gap-1"
+                          >
+                            <CheckCircle className="h-3 w-3" />
+                            Reservado
+                          </Badge>
+                        )
                       ) : isFull ? (
                         <Badge 
                           variant="secondary" 
@@ -506,7 +557,7 @@ const PublicSlotCard = ({ slot, canBook, onBook, isBooking, bookingAllocationId 
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <>
-                              Reservar
+                              Solicitar
                               <span className="text-muted-foreground">
                                 ({spotsLeft} hueco{spotsLeft > 1 ? "s" : ""})
                               </span>
