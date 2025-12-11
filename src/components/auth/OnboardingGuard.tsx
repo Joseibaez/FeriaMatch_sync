@@ -14,17 +14,19 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
   const [isChecking, setIsChecking] = useState(true);
 
+  // CRITICAL: Immediately allow onboarding route - no checks needed
+  const isOnOnboardingPage = location.pathname === '/onboarding';
+
   useEffect(() => {
+    // Skip ALL checks if on onboarding page
+    if (isOnOnboardingPage) {
+      setIsChecking(false);
+      return;
+    }
+
     const checkOnboardingStatus = async () => {
       if (!user) {
         setIsChecking(false);
-        return;
-      }
-
-      // Skip check if we're already on the onboarding page
-      if (location.pathname === '/onboarding') {
-        setIsChecking(false);
-        setIsOnboarded(false); // Allow them to stay on onboarding
         return;
       }
 
@@ -36,18 +38,15 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
           .maybeSingle();
 
         if (error) {
-          // On RLS error or any error, assume not onboarded and let them go to onboarding
           console.error('Error checking onboarding status:', error);
           setIsOnboarded(false);
         } else if (!data) {
-          // No profile exists yet - needs onboarding
           setIsOnboarded(false);
         } else {
           setIsOnboarded(data.is_onboarded ?? false);
         }
       } catch (error) {
         console.error('Error checking onboarding status:', error);
-        // On error, don't block - let them try onboarding
         setIsOnboarded(false);
       } finally {
         setIsChecking(false);
@@ -59,7 +58,12 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
     } else if (!authLoading) {
       setIsChecking(false);
     }
-  }, [user, authLoading, location.pathname]);
+  }, [user, authLoading, isOnOnboardingPage]);
+
+  // FIRST CHECK: If on onboarding page, render immediately
+  if (isOnOnboardingPage) {
+    return <>{children}</>;
+  }
 
   // Show loading while checking auth or onboarding status
   if (authLoading || isChecking) {
@@ -75,11 +79,6 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
 
   // If not logged in, let ProtectedRoute handle redirect to auth
   if (!user) {
-    return <>{children}</>;
-  }
-
-  // Skip onboarding check if already on the onboarding page
-  if (location.pathname === '/onboarding') {
     return <>{children}</>;
   }
 
