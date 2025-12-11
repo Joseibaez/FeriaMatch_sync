@@ -23,6 +23,7 @@ import MiAgenda from "./pages/app/MiAgenda";
 import Eventos from "./pages/app/Eventos";
 import EventoDetalle from "./pages/app/EventoDetalle";
 import EventoAgenda from "./pages/app/EventoAgenda";
+import EventFinder from "./pages/app/EventFinder";
 import Perfil from "./pages/app/Perfil";
 import Configuracion from "./pages/app/Configuracion";
 import CompanyDashboard from "./pages/app/CompanyDashboard";
@@ -63,6 +64,7 @@ const App = () => (
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="agenda/:eventId" element={<EventoAgenda />} />
               <Route path="agenda" element={<MiAgenda />} />
+              <Route path="explorar" element={<EventFinder />} />
               
               {/* Admin routes */}
               <Route path="admin" element={
