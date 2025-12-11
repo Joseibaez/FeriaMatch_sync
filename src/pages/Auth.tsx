@@ -66,16 +66,17 @@ export default function Auth() {
     if (!validateInputs(false)) return;
     
     setLoading(true);
-    const { error } = await signIn(email, password);
-    setLoading(false);
+    const { error: signInError } = await signIn(email, password);
 
-    if (error) {
-      if (error.message.includes('Invalid login credentials')) {
+    if (signInError) {
+      setLoading(false);
+      if (signInError.message.includes('Invalid login credentials')) {
         setError('Invalid email or password. Please try again.');
       } else {
-        setError(error.message);
+        setError(signInError.message);
       }
     }
+    // Loading stays true until redirect happens via useEffect
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -86,24 +87,23 @@ export default function Auth() {
     if (!validateInputs(true)) return;
     
     setLoading(true);
-    const { error } = await signUp(
+    const { error: signUpError } = await signUp(
       email, 
       password, 
       fullName, 
       selectedRole === 'recruiter' ? companyName : undefined,
       selectedRole
     );
-    setLoading(false);
 
-    if (error) {
-      if (error.message.includes('already registered')) {
+    if (signUpError) {
+      setLoading(false);
+      if (signUpError.message.includes('already registered')) {
         setError('This email is already registered. Please sign in instead.');
       } else {
-        setError(error.message);
+        setError(signUpError.message);
       }
-    } else {
-      setMessage('Account created successfully! You can now sign in.');
     }
+    // Loading stays true - user will be auto-redirected after auth completes
   };
 
   return (

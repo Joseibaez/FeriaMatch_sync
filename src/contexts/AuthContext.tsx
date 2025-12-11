@@ -25,76 +25,107 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
-  useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Defer data fetching to avoid deadlock
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserData(session.user.id);
-          }, 0);
-        } else {
-          setUserRole(null);
-          setIsOnboarded(null);
-        }
-      }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserData(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchUserData = async (userId: string) => {
+  const fetchUserData = async (userId: string): Promise<void> => {
     try {
-      // Fetch role
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (roleError) {
-        console.error('Error fetching user role:', roleError);
-      } else if (roleData) {
-        setUserRole(roleData.role as AppRole);
+      // Fetch role and profile in parallel for speed
+      const [roleResult, profileResult] = await Promise.all([
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('is_onboarded')
+          .eq('id', userId)
+          .maybeSingle()
+      ]);
+
+      // Handle role
+      if (roleResult.error) {
+        console.error('Error fetching user role:', roleResult.error);
+      } else if (roleResult.data) {
+        setUserRole(roleResult.data.role as AppRole);
       }
 
-      // Fetch onboarding status
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('is_onboarded')
-        .eq('id', userId)
-        .maybeSingle();
-      
-      if (profileError) {
-        console.error('Error fetching profile:', profileError);
-        // On error, assume not onboarded so they can complete the flow
+      // Handle onboarding status
+      if (profileResult.error) {
+        console.error('Error fetching profile:', profileResult.error);
         setIsOnboarded(false);
-      } else if (!profileData) {
-        // No profile yet - needs onboarding
+      } else if (!profileResult.data) {
         setIsOnboarded(false);
       } else {
-        setIsOnboarded(profileData.is_onboarded ?? false);
+        setIsOnboarded(profileResult.data.is_onboarded ?? false);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
       setIsOnboarded(false);
     }
   };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        
+        if (initialSession?.user) {
+          await fetchUserData(initialSession.user.id);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        if (mounted) {
+          setInitialLoadDone(true);
+          setLoading(false);
+        }
+      }
+    };
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        if (!mounted) return;
+        
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        
+        if (newSession?.user) {
+          // Only set loading true for sign in/up events after initial load
+          if (initialLoadDone && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+            setLoading(true);
+          }
+          
+          // Use setTimeout to avoid deadlock, but await the result
+          setTimeout(async () => {
+            if (!mounted) return;
+            await fetchUserData(newSession.user.id);
+            if (mounted) setLoading(false);
+          }, 0);
+        } else {
+          setUserRole(null);
+          setIsOnboarded(null);
+          setLoading(false);
+        }
+      }
+    );
+
+    initializeAuth();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const refreshOnboardingStatus = async () => {
     if (!user) return;
@@ -115,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     companyName?: string,
     role: 'candidate' | 'recruiter' = 'candidate'
   ) => {
+    setLoading(true);
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
@@ -130,14 +162,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
     
+    if (error) {
+      setLoading(false);
+    }
+    // Loading will be set to false by onAuthStateChange after fetching user data
+    
     return { error: error as Error | null };
   };
 
   const signIn = async (email: string, password: string) => {
+    setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    if (error) {
+      setLoading(false);
+    }
+    // Loading will be set to false by onAuthStateChange after fetching user data
     
     return { error: error as Error | null };
   };
