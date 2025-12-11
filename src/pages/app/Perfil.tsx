@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BackButton } from "@/components/navigation/BackButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -19,6 +20,7 @@ import { getStringColor, getContrastTextColor } from "@/lib/colorUtils";
 const Perfil = () => {
   const { user, userRole } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Fetch profile data from profiles table
   const { data: profile, isLoading } = useQuery({
@@ -204,7 +206,11 @@ const Perfil = () => {
               </div>
             </div>
 
-            <Button variant="outline" className="touch-target">
+            <Button 
+              variant="outline" 
+              className="touch-target"
+              onClick={() => navigate("/app/configuracion")}
+            >
               Editar perfil
             </Button>
           </div>
