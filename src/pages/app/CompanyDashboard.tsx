@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Building2, Calendar, Users, Clock, MapPin, ExternalLink, FileText, Linkedin } from 'lucide-react';
+import { Building2, Calendar, Users, Clock, MapPin, FileText, Linkedin } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -212,12 +212,16 @@ export default function CompanyDashboard() {
           <Skeleton className="h-8 w-64 mb-2" />
           <Skeleton className="h-4 w-48" />
         </div>
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-4">
           {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-32" />
+            <Skeleton key={i} className="h-24" />
           ))}
         </div>
-        <Skeleton className="h-64" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <Skeleton key={i} className="h-48" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -265,6 +269,7 @@ export default function CompanyDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-foreground">Dashboard de {profile.company_name}</h1>
         <p className="text-muted-foreground">
@@ -273,164 +278,177 @@ export default function CompanyDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Slots Asignados</CardTitle>
+      <div className="grid grid-cols-3 gap-4">
+        <Card className="shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-medium">Slots</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             <div className="text-2xl font-bold">{totalSlots}</div>
             <p className="text-xs text-muted-foreground">
-              En {uniqueEvents} evento{uniqueEvents !== 1 ? 's' : ''}
+              {uniqueEvents} evento{uniqueEvents !== 1 ? 's' : ''}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Candidatos Agendados</CardTitle>
+        <Card className="shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-medium">Reservados</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             <div className="text-2xl font-bold">{bookedSlots}</div>
             <p className="text-xs text-muted-foreground">
-              {totalSlots - bookedSlots} slot{totalSlots - bookedSlots !== 1 ? 's' : ''} disponible{totalSlots - bookedSlots !== 1 ? 's' : ''}
+              {totalSlots - bookedSlots} disponible{totalSlots - bookedSlots !== 1 ? 's' : ''}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Eventos Activos</CardTitle>
+        <Card className="shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-medium">Eventos</CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             <div className="text-2xl font-bold">{uniqueEvents}</div>
             <p className="text-xs text-muted-foreground">
-              Ferias de empleo
+              Ferias activas
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Slots by Event */}
+      {/* Slots Grid by Event */}
       {allocationsByEvent && Object.values(allocationsByEvent).map(({ event, allocations: eventAllocations }) => (
-        <Card key={event.id}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              {event.title}
-            </CardTitle>
-            <CardDescription className="capitalize">
-              {formatDate(event.event_date)}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {eventAllocations.map((allocation) => (
-                <div
-                  key={allocation.id}
-                  className={`border rounded-lg p-4 transition-colors ${
-                    allocation.booking 
-                      ? 'bg-primary/5 border-primary/20' 
-                      : 'bg-muted/30 border-border'
-                  }`}
-                >
-                  {/* Time and Location Header */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
+        <div key={event.id} className="space-y-4">
+          {/* Event Header */}
+          <div className="flex items-center gap-3 pb-2 border-b">
+            <Calendar className="h-5 w-5 text-primary" />
+            <div>
+              <h2 className="font-semibold text-foreground">{event.title}</h2>
+              <p className="text-sm text-muted-foreground capitalize">{formatDate(event.event_date)}</p>
+            </div>
+          </div>
+
+          {/* Grid of Slot Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {eventAllocations.map((allocation) => (
+              <Card 
+                key={allocation.id} 
+                className={`shadow-sm border transition-all hover:shadow-md ${
+                  allocation.booking 
+                    ? 'border-primary/30 bg-primary/5' 
+                    : 'border-border bg-card'
+                }`}
+              >
+                {/* Card Header: Time + Status */}
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-semibold text-foreground">
                         {formatTime(allocation.slot.start_time)} - {formatTime(allocation.slot.end_time)}
-                      </div>
-                      {allocation.stand_number && (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          Stand {allocation.stand_number}
-                        </div>
-                      )}
+                      </span>
                     </div>
-                    <Badge variant={allocation.booking ? 'default' : 'secondary'}>
+                    <Badge 
+                      variant={allocation.booking ? 'default' : 'secondary'}
+                      className="text-xs"
+                    >
                       {allocation.booking ? 'Reservado' : 'Disponible'}
                     </Badge>
                   </div>
+                  {allocation.stand_number && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                      <MapPin className="h-3 w-3" />
+                      Stand {allocation.stand_number}
+                    </div>
+                  )}
+                </CardHeader>
 
-                  {/* Candidate Card */}
+                {/* Card Body: Candidate Info */}
+                <CardContent className="px-4 pb-4">
                   {allocation.booking ? (
-                    <div className="bg-background rounded-md p-4 border">
-                      <div className="flex items-start gap-4">
-                        <Avatar className="h-12 w-12">
-                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                    <div className="space-y-3">
+                      {/* Candidate */}
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                             {getInitials(allocation.booking.candidate.full_name)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-foreground">
+                          <p className="font-medium text-foreground text-sm truncate">
                             {allocation.booking.candidate.full_name || 'Sin nombre'}
-                          </h4>
-                          <p className="text-sm text-muted-foreground truncate">
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
                             {allocation.booking.candidate.email}
                           </p>
-                          {allocation.booking.candidate.phone && (
-                            <p className="text-sm text-muted-foreground">
-                              {allocation.booking.candidate.phone}
-                            </p>
-                          )}
                         </div>
-                        <div className="flex gap-2">
-                          {allocation.booking.candidate.linkedin_url && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              asChild
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        {allocation.booking.candidate.linkedin_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 h-8 text-xs"
+                            asChild
+                          >
+                            <a
+                              href={allocation.booking.candidate.linkedin_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
                             >
-                              <a
-                                href={allocation.booking.candidate.linkedin_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Linkedin className="h-4 w-4 mr-1" />
-                                LinkedIn
-                              </a>
-                            </Button>
-                          )}
-                          {allocation.booking.candidate.cv_url && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              asChild
+                              <Linkedin className="h-3 w-3 mr-1" />
+                              LinkedIn
+                            </a>
+                          </Button>
+                        )}
+                        {allocation.booking.candidate.cv_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 h-8 text-xs"
+                            asChild
+                          >
+                            <a
+                              href={allocation.booking.candidate.cv_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
                             >
-                              <a
-                                href={allocation.booking.candidate.cv_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <FileText className="h-4 w-4 mr-1" />
-                                CV
-                              </a>
-                            </Button>
-                          )}
-                        </div>
+                              <FileText className="h-3 w-3 mr-1" />
+                              CV
+                            </a>
+                          </Button>
+                        )}
+                        {!allocation.booking.candidate.linkedin_url && !allocation.booking.candidate.cv_url && (
+                          <p className="text-xs text-muted-foreground italic">
+                            Sin documentos adjuntos
+                          </p>
+                        )}
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center py-4 text-sm text-muted-foreground">
-                      Ningún candidato ha reservado este horario todavía
+                    <div className="flex items-center justify-center py-6">
+                      <p className="text-sm text-muted-foreground text-center">
+                        Slot disponible
+                      </p>
                     </div>
                   )}
 
-                  {/* Interviewer info */}
+                  {/* Interviewer (if assigned) */}
                   {allocation.interviewer_name && (
-                    <div className="mt-3 text-xs text-muted-foreground">
+                    <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
                       Entrevistador: {allocation.interviewer_name}
                     </div>
                   )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   );
