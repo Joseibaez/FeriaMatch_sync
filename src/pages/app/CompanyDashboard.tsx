@@ -6,10 +6,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Building2, Calendar, Users, Clock, MapPin, FileText, Linkedin } from 'lucide-react';
+import { Building2, Calendar, Users, Clock, MapPin, FileText, Linkedin, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AvailableEventsSection } from '@/components/company/AvailableEventsSection';
+import { generateCSV, downloadCSV, formatDateForFilename, CSVColumn } from '@/lib/csvExport';
+import { toast } from 'sonner';
 interface SlotAllocationWithBooking {
   id: string;
   company_name: string;
@@ -227,6 +229,37 @@ export default function CompanyDashboard() {
     }
   };
 
+  // Export CSV for company
+  const handleExportCSV = () => {
+    if (!allocations || allocations.length === 0) {
+      toast.error('No hay datos para exportar');
+      return;
+    }
+
+    const bookedAllocations = allocations.filter(a => a.booking);
+    if (bookedAllocations.length === 0) {
+      toast.error('No hay candidatos reservados para exportar');
+      return;
+    }
+
+    const columns: CSVColumn<SlotAllocationWithBooking>[] = [
+      { header: 'Fecha', accessor: (row) => row.slot.event.event_date },
+      { header: 'Hora', accessor: (row) => formatTime(row.slot.start_time) + ' - ' + formatTime(row.slot.end_time) },
+      { header: 'Evento', accessor: (row) => row.slot.event.title },
+      { header: 'Nombre Candidato', accessor: (row) => row.booking?.candidate.full_name || '' },
+      { header: 'Email Candidato', accessor: (row) => row.booking?.candidate.email || '' },
+      { header: 'Teléfono', accessor: (row) => row.booking?.candidate.phone || '' },
+      { header: 'LinkedIn', accessor: (row) => row.booking?.candidate.linkedin_url || '' },
+      { header: 'CV', accessor: (row) => row.booking?.candidate.cv_url || '' },
+      { header: 'Stand', accessor: (row) => row.stand_number || '' },
+    ];
+
+    const csv = generateCSV(bookedAllocations, columns);
+    const filename = `Agenda-Empresa-${formatDateForFilename()}.csv`;
+    downloadCSV(csv, filename);
+    toast.success('CSV descargado correctamente');
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -369,8 +402,19 @@ export default function CompanyDashboard() {
       <AvailableEventsSection companyName={profile.company_name} companySector={companySector} />
 
       {/* My Slots Grid by Event */}
-      <div>
-        <h2 className="text-xl font-semibold text-foreground mb-4">Mis Inscripciones</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-foreground">Mis Inscripciones</h2>
+        {bookedSlots > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExportCSV()}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Descargar CSV
+          </Button>
+        )}
       </div>
       {allocationsByEvent && Object.values(allocationsByEvent).map(({ event, allocations: eventAllocations }) => (
         <div key={event.id} className="space-y-4">
