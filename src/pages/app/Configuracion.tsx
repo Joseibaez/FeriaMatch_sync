@@ -6,12 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Bell, Shield, Palette, Loader2, Phone, Linkedin, FileText } from "lucide-react";
+import { User, Bell, Shield, Palette, Loader2, Phone, Linkedin, FileText, Image } from "lucide-react";
 import { BackButton } from "@/components/navigation/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
+import { FileUploader } from "@/components/upload/FileUploader";
 
 // Validation schema for profile fields
 const profileSchema = z.object({
@@ -24,7 +25,6 @@ const profileSchema = z.object({
     })
     .optional()
     .or(z.literal("")),
-  cv_url: z.string().url("Debe ser una URL válida").optional().or(z.literal("")),
 });
 
 // Password validation schema
@@ -43,6 +43,8 @@ interface ProfileData {
   phone: string;
   linkedin_url: string;
   cv_url: string;
+  avatar_url: string;
+  logo_url: string;
 }
 
 const Configuracion = () => {
@@ -57,6 +59,8 @@ const Configuracion = () => {
     phone: "",
     linkedin_url: "",
     cv_url: "",
+    avatar_url: "",
+    logo_url: "",
   });
   const [passwords, setPasswords] = useState({
     newPassword: "",
@@ -70,7 +74,7 @@ const Configuracion = () => {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name, email, company_name, phone, linkedin_url, cv_url")
+        .select("full_name, email, company_name, phone, linkedin_url, cv_url, avatar_url, logo_url")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -85,6 +89,8 @@ const Configuracion = () => {
           phone: data.phone || "",
           linkedin_url: data.linkedin_url || "",
           cv_url: data.cv_url || "",
+          avatar_url: data.avatar_url || "",
+          logo_url: data.logo_url || "",
         });
       }
       setLoading(false);
@@ -121,6 +127,8 @@ const Configuracion = () => {
         phone: profile.phone || null,
         linkedin_url: profile.linkedin_url || null,
         cv_url: profile.cv_url || null,
+        avatar_url: profile.avatar_url || null,
+        logo_url: profile.logo_url || null,
       })
       .eq("id", user.id);
 
@@ -170,6 +178,24 @@ const Configuracion = () => {
     }
   };
 
+  const handleFileUpload = async (field: keyof ProfileData, url: string) => {
+    if (!user?.id) return;
+
+    // Update local state
+    setProfile((prev) => ({ ...prev, [field]: url }));
+
+    // Save to database immediately
+    const { error } = await supabase
+      .from("profiles")
+      .update({ [field]: url || null })
+      .eq("id", user.id);
+
+    if (error) {
+      console.error("Error saving file URL:", error);
+      toast.error("Error al guardar el archivo");
+    }
+  };
+
   const getRoleLabel = (role: string | null) => {
     switch (role) {
       case "admin":
@@ -199,12 +225,12 @@ const Configuracion = () => {
                 <Skeleton className="h-4 w-48" />
               </CardHeader>
               <CardContent className="space-y-4">
+                <Skeleton className="h-24 w-24 rounded-full mx-auto" />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Skeleton className="h-10 w-full" />
                   <Skeleton className="h-10 w-full" />
                 </div>
                 <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-32" />
               </CardContent>
             </Card>
           </div>
@@ -238,7 +264,7 @@ const Configuracion = () => {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          {/* Profile section */}
+          {/* Profile section with avatar */}
           <Card className="border bg-card">
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -249,7 +275,27 @@ const Configuracion = () => {
                 Información básica de tu cuenta
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+              {/* Avatar upload */}
+              <div className="flex justify-center">
+                {user?.id && (
+                  <FileUploader
+                    userId={user.id}
+                    bucket="public-files"
+                    folder="avatars"
+                    currentUrl={profile.avatar_url}
+                    onUploadComplete={(url) => handleFileUpload("avatar_url", url)}
+                    accept="image/jpeg,image/png,image/webp"
+                    maxSize={5}
+                    variant="avatar"
+                    label="Foto de perfil"
+                  />
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Basic info */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="nombre">Nombre</Label>
@@ -335,28 +381,6 @@ const Configuracion = () => {
                     <p className="text-sm text-destructive">{errors.linkedin_url}</p>
                   )}
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="cv" className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    CV (URL)
-                  </Label>
-                  <Input
-                    id="cv"
-                    type="url"
-                    placeholder="https://drive.google.com/tu-cv.pdf"
-                    value={profile.cv_url}
-                    onChange={(e) =>
-                      setProfile({ ...profile, cv_url: e.target.value })
-                    }
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Puedes subir tu CV a Google Drive o Dropbox y pegar el enlace aquí
-                  </p>
-                  {errors.cv_url && (
-                    <p className="text-sm text-destructive">{errors.cv_url}</p>
-                  )}
-                </div>
               </div>
 
               <Button variant="default" onClick={handleSave} disabled={saving}>
@@ -365,6 +389,68 @@ const Configuracion = () => {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Documents section - Only for candidates */}
+          {userRole === "candidate" && (
+            <Card className="border bg-card">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <CardTitle>Documentos</CardTitle>
+                </div>
+                <CardDescription>
+                  Sube tu CV para que las empresas puedan conocerte mejor
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {user?.id && (
+                  <FileUploader
+                    userId={user.id}
+                    bucket="secure-documents"
+                    folder="cvs"
+                    currentUrl={profile.cv_url}
+                    onUploadComplete={(url) => handleFileUpload("cv_url", url)}
+                    accept="application/pdf"
+                    maxSize={10}
+                    variant="document"
+                    label="Subir CV (PDF)"
+                  />
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Company branding - Only for recruiters */}
+          {userRole === "recruiter" && (
+            <Card className="border bg-card">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Image className="h-5 w-5 text-primary" />
+                  <CardTitle>Imagen de Empresa</CardTitle>
+                </div>
+                <CardDescription>
+                  Sube el logo de tu empresa para que aparezca en la agenda
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-center">
+                  {user?.id && (
+                    <FileUploader
+                      userId={user.id}
+                      bucket="public-files"
+                      folder="logos"
+                      currentUrl={profile.logo_url}
+                      onUploadComplete={(url) => handleFileUpload("logo_url", url)}
+                      accept="image/jpeg,image/png,image/webp"
+                      maxSize={5}
+                      variant="logo"
+                      label="Logo de empresa"
+                    />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Notifications section */}
           <Card className="border bg-card">

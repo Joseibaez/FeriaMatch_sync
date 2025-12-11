@@ -86,6 +86,7 @@ export type Database = {
           id: string
           is_onboarded: boolean
           linkedin_url: string | null
+          logo_url: string | null
           phone: string | null
           website: string | null
         }
@@ -98,6 +99,7 @@ export type Database = {
           id: string
           is_onboarded?: boolean
           linkedin_url?: string | null
+          logo_url?: string | null
           phone?: string | null
           website?: string | null
         }
@@ -110,6 +112,7 @@ export type Database = {
           id?: string
           is_onboarded?: boolean
           linkedin_url?: string | null
+          logo_url?: string | null
           phone?: string | null
           website?: string | null
         }
