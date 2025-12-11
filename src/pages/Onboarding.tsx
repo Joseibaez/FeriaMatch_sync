@@ -128,13 +128,8 @@ export default function Onboarding() {
 
       if (profileError) throw profileError;
 
-      // Update role in user_roles table
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .update({ role: selectedRole })
-        .eq('user_id', user.id);
-
-      if (roleError) throw roleError;
+      // Note: Role is already set during signup by the handle_new_user trigger
+      // No client-side role update needed - this prevents privilege escalation attacks
 
       toast.success('¡Perfil completado correctamente!');
       
