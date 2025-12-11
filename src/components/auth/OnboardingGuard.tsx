@@ -21,6 +21,13 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
         return;
       }
 
+      // Skip check if we're already on the onboarding page
+      if (location.pathname === '/onboarding') {
+        setIsChecking(false);
+        setIsOnboarded(false); // Allow them to stay on onboarding
+        return;
+      }
+
       try {
         const { data, error } = await supabase
           .from('profiles')
@@ -29,14 +36,19 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
           .maybeSingle();
 
         if (error) {
+          // On RLS error or any error, assume not onboarded and let them go to onboarding
           console.error('Error checking onboarding status:', error);
-          setIsOnboarded(true); // Default to true to avoid blocking
+          setIsOnboarded(false);
+        } else if (!data) {
+          // No profile exists yet - needs onboarding
+          setIsOnboarded(false);
         } else {
-          setIsOnboarded(data?.is_onboarded ?? false);
+          setIsOnboarded(data.is_onboarded ?? false);
         }
       } catch (error) {
         console.error('Error checking onboarding status:', error);
-        setIsOnboarded(true);
+        // On error, don't block - let them try onboarding
+        setIsOnboarded(false);
       } finally {
         setIsChecking(false);
       }
@@ -47,7 +59,7 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
     } else if (!authLoading) {
       setIsChecking(false);
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, location.pathname]);
 
   // Show loading while checking auth or onboarding status
   if (authLoading || isChecking) {

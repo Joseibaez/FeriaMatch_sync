@@ -59,25 +59,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchUserData = async (userId: string) => {
-    // Fetch role
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .maybeSingle();
-    
-    if (roleData) {
-      setUserRole(roleData.role as AppRole);
-    }
+    try {
+      // Fetch role
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (roleError) {
+        console.error('Error fetching user role:', roleError);
+      } else if (roleData) {
+        setUserRole(roleData.role as AppRole);
+      }
 
-    // Fetch onboarding status
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('is_onboarded')
-      .eq('id', userId)
-      .maybeSingle();
-    
-    setIsOnboarded(profileData?.is_onboarded ?? false);
+      // Fetch onboarding status
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('is_onboarded')
+        .eq('id', userId)
+        .maybeSingle();
+      
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        // On error, assume not onboarded so they can complete the flow
+        setIsOnboarded(false);
+      } else if (!profileData) {
+        // No profile yet - needs onboarding
+        setIsOnboarded(false);
+      } else {
+        setIsOnboarded(profileData.is_onboarded ?? false);
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setIsOnboarded(false);
+    }
   };
 
   const refreshOnboardingStatus = async () => {
