@@ -49,20 +49,59 @@ const EventoAgenda = () => {
     },
   });
 
-  // Fetch user's existing bookings for this event
-  const { data: userBookings } = useQuery({
-    queryKey: ["user-bookings", eventId, user?.id],
-    enabled: !!eventId && !!user,
+  // Fetch user's existing bookings for this event with slot times for overlap check
+  const { data: userBookingsData } = useQuery({
+    queryKey: ["user-bookings-full", user?.id],
+    enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get all user bookings
+      const { data: bookings, error: bookingsError } = await supabase
         .from("bookings")
-        .select("slot_allocation_id")
+        .select("id, slot_allocation_id")
         .eq("user_id", user!.id);
 
-      if (error) throw error;
-      return data?.map((b) => b.slot_allocation_id) || [];
+      if (bookingsError) throw bookingsError;
+      if (!bookings || bookings.length === 0) return { bookingIds: [], bookingsWithSlots: [] };
+
+      // Get slot allocations for these bookings
+      const allocationIds = bookings.map((b) => b.slot_allocation_id);
+      const { data: allocations, error: allocError } = await supabase
+        .from("slot_allocations")
+        .select("id, slot_id")
+        .in("id", allocationIds);
+
+      if (allocError) throw allocError;
+
+      // Get slots for time ranges
+      const slotIds = allocations?.map((a) => a.slot_id) || [];
+      const { data: slots, error: slotsError } = await supabase
+        .from("slots")
+        .select("id, start_time, end_time")
+        .in("id", slotIds);
+
+      if (slotsError) throw slotsError;
+
+      // Combine bookings with their slot times
+      const bookingsWithSlots = bookings.map((booking) => {
+        const allocation = allocations?.find((a) => a.id === booking.slot_allocation_id);
+        const slot = slots?.find((s) => s.id === allocation?.slot_id);
+        return {
+          bookingId: booking.id,
+          allocationId: booking.slot_allocation_id,
+          slotId: allocation?.slot_id,
+          startTime: slot?.start_time,
+          endTime: slot?.end_time,
+        };
+      });
+
+      return {
+        bookingIds: bookings.map((b) => b.slot_allocation_id),
+        bookingsWithSlots,
+      };
     },
   });
+
+  const userBookings = userBookingsData?.bookingIds || [];
 
   // Fetch slots with allocations and booking counts
   const { data: slots, isLoading: slotsLoading } = useQuery({
@@ -123,9 +162,58 @@ const EventoAgenda = () => {
     },
   });
 
-  // Mutation for creating a booking
+  // Helper function to check if two time ranges overlap
+  const checkTimeOverlap = (
+    start1: string,
+    end1: string,
+    start2: string,
+    end2: string
+  ): boolean => {
+    const s1 = new Date(start1).getTime();
+    const e1 = new Date(end1).getTime();
+    const s2 = new Date(start2).getTime();
+    const e2 = new Date(end2).getTime();
+    // Overlap if one starts before the other ends and vice versa
+    return s1 < e2 && s2 < e1;
+  };
+
+  // Mutation for creating a booking with overlap check
   const bookMutation = useMutation({
     mutationFn: async (slotAllocationId: string) => {
+      // First, get the slot time for the allocation being booked
+      const { data: targetAllocation, error: allocError } = await supabase
+        .from("slot_allocations")
+        .select("slot_id")
+        .eq("id", slotAllocationId)
+        .single();
+
+      if (allocError) throw new Error("No se pudo obtener la asignación");
+
+      const { data: targetSlot, error: slotError } = await supabase
+        .from("slots")
+        .select("start_time, end_time")
+        .eq("id", targetAllocation.slot_id)
+        .single();
+
+      if (slotError) throw new Error("No se pudo obtener el horario del slot");
+
+      // Check for overlapping bookings
+      const existingBookings = userBookingsData?.bookingsWithSlots || [];
+      const hasOverlap = existingBookings.some((booking) => {
+        if (!booking.startTime || !booking.endTime) return false;
+        return checkTimeOverlap(
+          targetSlot.start_time,
+          targetSlot.end_time,
+          booking.startTime,
+          booking.endTime
+        );
+      });
+
+      if (hasOverlap) {
+        throw new Error("OVERLAP");
+      }
+
+      // No overlap, proceed with booking
       const { error } = await supabase
         .from("bookings")
         .insert({
@@ -137,11 +225,13 @@ const EventoAgenda = () => {
     },
     onSuccess: () => {
       toast.success("Reserva confirmada");
-      queryClient.invalidateQueries({ queryKey: ["user-bookings", eventId, user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["user-bookings-full", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["event-slots-agenda", eventId] });
     },
     onError: (error: Error) => {
-      if (error.message.includes("duplicate")) {
+      if (error.message === "OVERLAP") {
+        toast.error("Ya tienes otra entrevista programada en este horario");
+      } else if (error.message.includes("duplicate")) {
         toast.error("Ya tienes una reserva con esta empresa");
       } else {
         toast.error("Error al realizar la reserva");
