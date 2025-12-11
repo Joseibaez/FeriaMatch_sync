@@ -2,7 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,6 +36,7 @@ interface SlotAllocationWithBooking {
       linkedin_url: string | null;
       cv_url: string | null;
       phone: string | null;
+      avatar_url: string | null;
     };
   } | null;
 }
@@ -119,7 +120,7 @@ export default function CompanyDashboard() {
       if (candidateIds.length > 0) {
         const { data: candidateData, error: candidatesError } = await supabase
           .from('profiles')
-          .select('id, full_name, email, linkedin_url, cv_url, phone')
+          .select('id, full_name, email, linkedin_url, cv_url, phone, avatar_url')
           .in('id', candidateIds);
 
         if (candidatesError) throw candidatesError;
@@ -159,7 +160,8 @@ export default function CompanyDashboard() {
               linkedin_url: candidate.linkedin_url,
               cv_url: candidate.cv_url,
               phone: candidate.phone,
-            } : { id: '', full_name: null, email: '', linkedin_url: null, cv_url: null, phone: null },
+              avatar_url: candidate.avatar_url,
+            } : { id: '', full_name: null, email: '', linkedin_url: null, cv_url: null, phone: null, avatar_url: null },
           } : null,
         };
       });
@@ -370,9 +372,12 @@ export default function CompanyDashboard() {
                 <CardContent className="px-4 pb-4">
                   {allocation.booking ? (
                     <div className="space-y-3">
-                      {/* Candidate */}
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10">
+                          <AvatarImage 
+                            src={allocation.booking.candidate.avatar_url || undefined} 
+                            alt={allocation.booking.candidate.full_name || 'Candidato'}
+                          />
                           <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                             {getInitials(allocation.booking.candidate.full_name)}
                           </AvatarFallback>

@@ -72,9 +72,10 @@ const Configuracion = () => {
     const fetchProfile = async () => {
       if (!user?.id) return;
 
+      // Fetch profile data (cast to any temporarily until types regenerate)
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name, email, company_name, phone, linkedin_url, cv_url, avatar_url, logo_url")
+        .select("*")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -82,15 +83,16 @@ const Configuracion = () => {
         console.error("Error fetching profile:", error);
         toast.error("No se pudo cargar el perfil");
       } else if (data) {
+        const profileData = data as any;
         setProfile({
-          full_name: data.full_name || "",
-          email: data.email || "",
-          company_name: data.company_name || "",
-          phone: data.phone || "",
-          linkedin_url: data.linkedin_url || "",
-          cv_url: data.cv_url || "",
-          avatar_url: data.avatar_url || "",
-          logo_url: data.logo_url || "",
+          full_name: profileData.full_name || "",
+          email: profileData.email || "",
+          company_name: profileData.company_name || "",
+          phone: profileData.phone || "",
+          linkedin_url: profileData.linkedin_url || "",
+          cv_url: profileData.cv_url || "",
+          avatar_url: profileData.avatar_url || "",
+          logo_url: profileData.logo_url || "",
         });
       }
       setLoading(false);
