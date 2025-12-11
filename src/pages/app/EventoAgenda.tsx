@@ -183,7 +183,7 @@ const EventoAgenda = () => {
       // First, get the slot time for the allocation being booked
       const { data: targetAllocation, error: allocError } = await supabase
         .from("slot_allocations")
-        .select("slot_id")
+        .select("slot_id, company_name")
         .eq("id", slotAllocationId)
         .single();
 
@@ -222,11 +222,43 @@ const EventoAgenda = () => {
         });
 
       if (error) throw error;
+
+      // Return data needed for email
+      return {
+        companyName: targetAllocation.company_name,
+        slotStart: targetSlot.start_time,
+      };
     },
-    onSuccess: () => {
-      toast.success("Reserva confirmada");
+    onSuccess: async (data) => {
+      toast.success("Reserva confirmada. Te hemos enviado un email.");
       queryClient.invalidateQueries({ queryKey: ["user-bookings-full", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["event-slots-agenda", eventId] });
+
+      // Send confirmation email
+      try {
+        // Get user profile for name and email
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, email")
+          .eq("id", user!.id)
+          .single();
+
+        if (profile && event && data) {
+          const slotDate = new Date(data.slotStart);
+          await supabase.functions.invoke("send-booking-email", {
+            body: {
+              candidateName: profile.full_name || "Candidato",
+              candidateEmail: profile.email,
+              companyName: data.companyName,
+              date: format(new Date(event.event_date), "EEEE d 'de' MMMM, yyyy", { locale: es }),
+              time: format(slotDate, "HH:mm"),
+            },
+          });
+        }
+      } catch (emailError) {
+        console.error("Error sending confirmation email:", emailError);
+        // Don't show error to user - booking was successful
+      }
     },
     onError: (error: Error) => {
       if (error.message === "OVERLAP") {
