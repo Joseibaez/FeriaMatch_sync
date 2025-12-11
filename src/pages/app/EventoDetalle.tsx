@@ -6,6 +6,7 @@ import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast as sonnerToast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +26,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Calendar, Clock, Settings, Layers, Users, RefreshCw } from "lucide-react";
+import { Calendar, Clock, Settings, Layers, Users, RefreshCw, Download } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { generateCSV, downloadCSV, CSVColumn } from "@/lib/csvExport";
 
 const EventoDetalle = () => {
   const { id } = useParams<{ id: string }>();
@@ -70,6 +72,73 @@ const EventoDetalle = () => {
       return data;
     },
     enabled: !!id,
+  });
+
+  // Fetch slot allocations with bookings for export
+  const { data: allocationsForExport } = useQuery({
+    queryKey: ["event-allocations-export", id],
+    queryFn: async () => {
+      if (!id) return [];
+
+      // Get slot allocations
+      const { data: slotAllocations, error: allocError } = await supabase
+        .from("slot_allocations")
+        .select("id, company_name, sector, stand_number, interviewer_name, slot_id");
+
+      if (allocError) throw allocError;
+
+      // Get slots for this event
+      const { data: eventSlots, error: slotsError } = await supabase
+        .from("slots")
+        .select("id, start_time, end_time")
+        .eq("event_id", id);
+
+      if (slotsError) throw slotsError;
+
+      const eventSlotIds = eventSlots?.map(s => s.id) || [];
+      const relevantAllocations = slotAllocations?.filter(a => eventSlotIds.includes(a.slot_id)) || [];
+
+      if (relevantAllocations.length === 0) return [];
+
+      // Get bookings
+      const allocationIds = relevantAllocations.map(a => a.id);
+      const { data: bookings, error: bookingsError } = await supabase
+        .from("bookings")
+        .select("id, status, user_id, slot_allocation_id")
+        .in("slot_allocation_id", allocationIds);
+
+      if (bookingsError) throw bookingsError;
+
+      // Get candidate profiles
+      const candidateIds = bookings?.map(b => b.user_id) || [];
+      let candidates: any[] = [];
+      if (candidateIds.length > 0) {
+        const { data: candidateData, error: candidatesError } = await supabase
+          .from("profiles")
+          .select("id, full_name, email, phone")
+          .in("id", candidateIds);
+        if (candidatesError) throw candidatesError;
+        candidates = candidateData || [];
+      }
+
+      // Combine data
+      return relevantAllocations.map(allocation => {
+        const slot = eventSlots?.find(s => s.id === allocation.slot_id);
+        const booking = bookings?.find(b => b.slot_allocation_id === allocation.id);
+        const candidate = booking ? candidates.find(c => c.id === booking.user_id) : null;
+
+        return {
+          company_name: allocation.company_name,
+          stand_number: allocation.stand_number,
+          start_time: slot?.start_time || '',
+          end_time: slot?.end_time || '',
+          candidate_name: candidate?.full_name || '',
+          candidate_email: candidate?.email || '',
+          status: booking?.status || 'Disponible',
+        };
+      });
+    },
+    enabled: !!id && isAdmin,
   });
 
   // Generate slots mutation
@@ -171,6 +240,38 @@ const EventoDetalle = () => {
   const handleConfirmGenerate = () => {
     setShowOverwriteDialog(false);
     generateSlotsMutation.mutate();
+  };
+
+  // Export CSV for admin
+  const handleExportCSV = () => {
+    if (!allocationsForExport || allocationsForExport.length === 0) {
+      sonnerToast.error('No hay datos para exportar');
+      return;
+    }
+
+    const formatSlotTime = (timestamp: string) => {
+      try {
+        return format(new Date(timestamp), 'HH:mm', { locale: es });
+      } catch {
+        return '--:--';
+      }
+    };
+
+    type ExportRow = typeof allocationsForExport[number];
+    const columns: CSVColumn<ExportRow>[] = [
+      { header: 'Empresa', accessor: (row) => row.company_name },
+      { header: 'Stand', accessor: (row) => row.stand_number || '' },
+      { header: 'Hora', accessor: (row) => formatSlotTime(row.start_time) + ' - ' + formatSlotTime(row.end_time) },
+      { header: 'Candidato', accessor: (row) => row.candidate_name },
+      { header: 'Email', accessor: (row) => row.candidate_email },
+      { header: 'Estado', accessor: (row) => row.status },
+    ];
+
+    const csv = generateCSV(allocationsForExport, columns);
+    const eventName = event?.title?.replace(/[^a-zA-Z0-9]/g, '-') || 'Evento';
+    const filename = `Reporte-Global-${eventName}.csv`;
+    downloadCSV(csv, filename);
+    sonnerToast.success('CSV exportado correctamente');
   };
 
   if (eventLoading) {
@@ -329,15 +430,27 @@ const EventoDetalle = () => {
                 <RefreshCw className={`h-4 w-4 ${slotsFetching ? "animate-spin" : ""}`} />
               </Button>
               {isAdmin && (
-                <Button
-                  onClick={() => setBulkAssignOpen(true)}
-                  variant="default"
-                  size="sm"
-                  className="gap-2"
-                >
-                  <Users className="h-4 w-4" />
-                  Asignar por Rango
-                </Button>
+                <>
+                  <Button
+                    onClick={handleExportCSV}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    disabled={!allocationsForExport || allocationsForExport.length === 0}
+                  >
+                    <Download className="h-4 w-4" />
+                    Exportar CSV
+                  </Button>
+                  <Button
+                    onClick={() => setBulkAssignOpen(true)}
+                    variant="default"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Users className="h-4 w-4" />
+                    Asignar por Rango
+                  </Button>
+                </>
               )}
             </div>
           </CardHeader>
