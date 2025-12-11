@@ -154,6 +154,13 @@ export type Database = {
             foreignKeyName: "slot_allocations_slot_id_fkey"
             columns: ["slot_id"]
             isOneToOne: false
+            referencedRelation: "available_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slot_allocations_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
             referencedRelation: "slots"
             referencedColumns: ["id"]
           },
@@ -234,7 +241,51 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      available_slots: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          end_time: string | null
+          event_id: string | null
+          id: string | null
+          is_available: boolean | null
+          start_time: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          end_time?: string | null
+          event_id?: string | null
+          id?: string | null
+          is_available?: never
+          start_time?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          end_time?: string | null
+          event_id?: string | null
+          id?: string | null
+          is_available?: never
+          start_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slots_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_user_company_name: { Args: { _user_id: string }; Returns: string }
