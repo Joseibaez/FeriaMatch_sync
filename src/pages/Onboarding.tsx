@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,7 +27,7 @@ const companySchema = z.object({
 type RoleType = 'candidate' | 'recruiter' | null;
 
 export default function Onboarding() {
-  const { user, userRole } = useAuth();
+  const { user, userRole, refreshOnboardingStatus } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedRole, setSelectedRole] = useState<RoleType>(null);
@@ -44,6 +44,13 @@ export default function Onboarding() {
   const [companyName, setCompanyName] = useState('');
   const [sector, setSector] = useState('');
   const [website, setWebsite] = useState('');
+
+  // Redirect admins using useEffect to avoid render-loop
+  useEffect(() => {
+    if (userRole === 'admin') {
+      navigate('/app/eventos', { replace: true });
+    }
+  }, [userRole, navigate]);
 
   const handleRoleSelect = (role: RoleType) => {
     setSelectedRole(role);
@@ -106,25 +113,28 @@ export default function Onboarding() {
         }
       }
 
-      // Update profile
+      // Update profile - use upsert to handle case where profile might not exist
       const profileData = selectedRole === 'candidate'
         ? {
+            id: user.id,
+            email: user.email || '',
             full_name: `${firstName} ${lastName}`,
             phone,
             linkedin_url: linkedinUrl || null,
             is_onboarded: true,
           }
         : {
+            id: user.id,
+            email: user.email || '',
             company_name: companyName,
-            phone: sector, // Using phone field for sector temporarily or add sector column
+            phone: sector,
             website: website || null,
             is_onboarded: true,
           };
 
       const { error: profileError } = await supabase
         .from('profiles')
-        .update(profileData)
-        .eq('id', user.id);
+        .upsert(profileData, { onConflict: 'id' });
 
       if (profileError) throw profileError;
 
@@ -133,23 +143,22 @@ export default function Onboarding() {
 
       toast.success('¡Perfil completado correctamente!');
       
+      // Refresh onboarding status in AuthContext
+      await refreshOnboardingStatus();
+      
       // Redirect based on role
       const redirectPath = getRedirectPath(selectedRole);
       navigate(redirectPath, { replace: true });
-      
-      // Reload to refresh auth context with new role
-      window.location.reload();
     } catch (error: any) {
       console.error('Onboarding error:', error);
-      toast.error('Error al guardar el perfil');
+      toast.error('Error al guardar el perfil. Intenta de nuevo.');
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }
 
-  // If user already has admin role, redirect them
+  // Don't render if admin (will redirect)
   if (userRole === 'admin') {
-    navigate('/app/eventos', { replace: true });
     return null;
   }
 
