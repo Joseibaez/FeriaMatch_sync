@@ -1,17 +1,18 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Building2, Calendar, Users, Clock, MapPin, FileText, Linkedin, Download } from 'lucide-react';
+import { Building2, Calendar, Users, Clock, MapPin, FileText, Linkedin, Download, Check, X, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AvailableEventsSection } from '@/components/company/AvailableEventsSection';
 import { generateCSV, downloadCSV, formatDateForFilename, CSVColumn } from '@/lib/csvExport';
 import { toast } from 'sonner';
+
 interface SlotAllocationWithBooking {
   id: string;
   company_name: string;
@@ -45,6 +46,7 @@ interface SlotAllocationWithBooking {
 
 export default function CompanyDashboard() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Fetch the recruiter's profile to get company_name and sector
   const { data: profile, isLoading: profileLoading } = useQuery({
@@ -198,11 +200,69 @@ export default function CompanyDashboard() {
     enabled: !!profile?.company_name,
   });
 
+  // Mutation for approving a booking
+  const approveMutation = useMutation({
+    mutationFn: async ({ bookingId, allocation }: { bookingId: string; allocation: SlotAllocationWithBooking }) => {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'confirmed' })
+        .eq('id', bookingId);
+
+      if (error) throw error;
+      return allocation;
+    },
+    onSuccess: async (allocation) => {
+      toast.success('Solicitud aceptada');
+      queryClient.invalidateQueries({ queryKey: ['company-allocations'] });
+
+      // Send approval email to candidate
+      try {
+        if (allocation.booking?.candidate && allocation.slot.event) {
+          await supabase.functions.invoke('send-booking-email', {
+            body: {
+              type: 'approval_to_candidate',
+              candidateName: allocation.booking.candidate.full_name || 'Candidato',
+              candidateEmail: allocation.booking.candidate.email,
+              companyName: allocation.company_name,
+              date: format(new Date(allocation.slot.event.event_date), "EEEE d 'de' MMMM, yyyy", { locale: es }),
+              time: formatTime(allocation.slot.start_time),
+            },
+          });
+        }
+      } catch (emailError) {
+        console.error('Error sending approval email:', emailError);
+      }
+    },
+    onError: () => {
+      toast.error('Error al aceptar la solicitud');
+    },
+  });
+
+  // Mutation for rejecting a booking
+  const rejectMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'rejected' })
+        .eq('id', bookingId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Solicitud rechazada');
+      queryClient.invalidateQueries({ queryKey: ['company-allocations'] });
+    },
+    onError: () => {
+      toast.error('Error al rechazar la solicitud');
+    },
+  });
+
   const isLoading = profileLoading || allocationsLoading;
   
   // Stats
   const totalSlots = allocations?.length || 0;
-  const bookedSlots = allocations?.filter(a => a.booking)?.length || 0;
+  const confirmedBookings = allocations?.filter(a => a.booking?.status === 'confirmed')?.length || 0;
+  const pendingBookings = allocations?.filter(a => a.booking?.status === 'pending')?.length || 0;
   const uniqueEvents = new Set(allocations?.map(a => a.slot.event.id)).size;
 
   // Get initials for avatar
@@ -236,9 +296,9 @@ export default function CompanyDashboard() {
       return;
     }
 
-    const bookedAllocations = allocations.filter(a => a.booking);
+    const bookedAllocations = allocations.filter(a => a.booking?.status === 'confirmed');
     if (bookedAllocations.length === 0) {
-      toast.error('No hay candidatos reservados para exportar');
+      toast.error('No hay candidatos confirmados para exportar');
       return;
     }
 
@@ -357,7 +417,7 @@ export default function CompanyDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
             <CardTitle className="text-sm font-medium">Slots</CardTitle>
@@ -373,13 +433,26 @@ export default function CompanyDashboard() {
 
         <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-            <CardTitle className="text-sm font-medium">Reservados</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Confirmados</CardTitle>
+            <Check className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <div className="text-2xl font-bold">{bookedSlots}</div>
+            <div className="text-2xl font-bold text-green-600">{confirmedBookings}</div>
             <p className="text-xs text-muted-foreground">
-              {totalSlots - bookedSlots} disponible{totalSlots - bookedSlots !== 1 ? 's' : ''}
+              Entrevistas confirmadas
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-yellow-200 bg-yellow-50/50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="text-2xl font-bold text-yellow-600">{pendingBookings}</div>
+            <p className="text-xs text-muted-foreground">
+              Solicitudes por revisar
             </p>
           </CardContent>
         </Card>
@@ -404,7 +477,7 @@ export default function CompanyDashboard() {
       {/* My Slots Grid by Event */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-foreground">Mis Inscripciones</h2>
-        {bookedSlots > 0 && (
+        {confirmedBookings > 0 && (
           <Button
             variant="outline"
             size="sm"
@@ -429,123 +502,182 @@ export default function CompanyDashboard() {
 
           {/* Grid of Slot Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {eventAllocations.map((allocation) => (
-              <Card 
-                key={allocation.id} 
-                className={`shadow-sm border transition-all hover:shadow-md ${
-                  allocation.booking 
-                    ? 'border-primary/30 bg-primary/5' 
-                    : 'border-border bg-card'
-                }`}
-              >
-                {/* Card Header: Time + Status */}
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-semibold text-foreground">
-                        {formatTime(allocation.slot.start_time)} - {formatTime(allocation.slot.end_time)}
-                      </span>
+            {eventAllocations.map((allocation) => {
+              const isPending = allocation.booking?.status === 'pending';
+              const isConfirmed = allocation.booking?.status === 'confirmed';
+              const isRejected = allocation.booking?.status === 'rejected';
+              const isProcessing = approveMutation.isPending || rejectMutation.isPending;
+              
+              return (
+                <Card 
+                  key={allocation.id} 
+                  className={`shadow-sm border transition-all hover:shadow-md ${
+                    isPending
+                      ? 'border-yellow-300 bg-yellow-50/50'
+                      : isConfirmed
+                      ? 'border-green-300 bg-green-50/50' 
+                      : allocation.booking
+                      ? 'border-border bg-card'
+                      : 'border-border bg-card'
+                  }`}
+                >
+                  {/* Card Header: Time + Status */}
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-semibold text-foreground">
+                          {formatTime(allocation.slot.start_time)} - {formatTime(allocation.slot.end_time)}
+                        </span>
+                      </div>
+                      <Badge 
+                        variant={isPending ? 'outline' : isConfirmed ? 'default' : isRejected ? 'destructive' : 'secondary'}
+                        className={`text-xs ${
+                          isPending 
+                            ? 'bg-yellow-100 text-yellow-800 border-yellow-300' 
+                            : isConfirmed
+                            ? 'bg-green-100 text-green-800 border-green-300'
+                            : isRejected
+                            ? 'bg-red-100 text-red-800 border-red-300'
+                            : ''
+                        }`}
+                      >
+                        {isPending ? 'Pendiente' : isConfirmed ? 'Confirmado' : isRejected ? 'Rechazado' : 'Disponible'}
+                      </Badge>
                     </div>
-                    <Badge 
-                      variant={allocation.booking ? 'default' : 'secondary'}
-                      className="text-xs"
-                    >
-                      {allocation.booking ? 'Reservado' : 'Disponible'}
-                    </Badge>
-                  </div>
-                  {allocation.stand_number && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                      <MapPin className="h-3 w-3" />
-                      Stand {allocation.stand_number}
-                    </div>
-                  )}
-                </CardHeader>
+                    {allocation.stand_number && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                        <MapPin className="h-3 w-3" />
+                        Stand {allocation.stand_number}
+                      </div>
+                    )}
+                  </CardHeader>
 
-                {/* Card Body: Candidate Info */}
-                <CardContent className="px-4 pb-4">
-                  {allocation.booking ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage 
-                            src={allocation.booking.candidate.avatar_url || undefined} 
-                            alt={allocation.booking.candidate.full_name || 'Candidato'}
-                          />
-                          <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                            {getInitials(allocation.booking.candidate.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-foreground text-sm truncate">
-                            {allocation.booking.candidate.full_name || 'Sin nombre'}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {allocation.booking.candidate.email}
-                          </p>
+                  {/* Card Body: Candidate Info */}
+                  <CardContent className="px-4 pb-4">
+                    {allocation.booking ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage 
+                              src={allocation.booking.candidate.avatar_url || undefined} 
+                              alt={allocation.booking.candidate.full_name || 'Candidato'}
+                            />
+                            <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                              {getInitials(allocation.booking.candidate.full_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground text-sm truncate">
+                              {allocation.booking.candidate.full_name || 'Sin nombre'}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {allocation.booking.candidate.email}
+                            </p>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex gap-2">
-                        {allocation.booking.candidate.linkedin_url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 h-8 text-xs"
-                            asChild
-                          >
-                            <a
-                              href={allocation.booking.candidate.linkedin_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                        {/* Approval/Rejection Buttons for Pending */}
+                        {isPending && (
+                          <div className="flex gap-2 pt-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700"
+                              onClick={() => approveMutation.mutate({ bookingId: allocation.booking!.id, allocation })}
+                              disabled={isProcessing}
                             >
-                              <Linkedin className="h-3 w-3 mr-1" />
-                              LinkedIn
-                            </a>
-                          </Button>
-                        )}
-                        {allocation.booking.candidate.cv_url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 h-8 text-xs"
-                            asChild
-                          >
-                            <a
-                              href={allocation.booking.candidate.cv_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              {approveMutation.isPending ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <>
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Aceptar
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-8 text-xs border-red-300 text-red-600 hover:bg-red-50"
+                              onClick={() => rejectMutation.mutate(allocation.booking!.id)}
+                              disabled={isProcessing}
                             >
-                              <FileText className="h-3 w-3 mr-1" />
-                              CV
-                            </a>
-                          </Button>
+                              {rejectMutation.isPending ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <>
+                                  <X className="h-3 w-3 mr-1" />
+                                  Rechazar
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         )}
-                        {!allocation.booking.candidate.linkedin_url && !allocation.booking.candidate.cv_url && (
-                          <p className="text-xs text-muted-foreground italic">
-                            Sin documentos adjuntos
-                          </p>
+
+                        {/* Action Buttons for Confirmed */}
+                        {isConfirmed && (
+                          <div className="flex gap-2">
+                            {allocation.booking.candidate.linkedin_url && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 h-8 text-xs"
+                                asChild
+                              >
+                                <a
+                                  href={allocation.booking.candidate.linkedin_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <Linkedin className="h-3 w-3 mr-1" />
+                                  LinkedIn
+                                </a>
+                              </Button>
+                            )}
+                            {allocation.booking.candidate.cv_url && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 h-8 text-xs"
+                                asChild
+                              >
+                                <a
+                                  href={allocation.booking.candidate.cv_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <FileText className="h-3 w-3 mr-1" />
+                                  CV
+                                </a>
+                              </Button>
+                            )}
+                            {!allocation.booking.candidate.linkedin_url && !allocation.booking.candidate.cv_url && (
+                              <p className="text-xs text-muted-foreground italic">
+                                Sin documentos adjuntos
+                              </p>
+                            )}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center py-6">
-                      <p className="text-sm text-muted-foreground text-center">
-                        Slot disponible
-                      </p>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="flex items-center justify-center py-6">
+                        <p className="text-sm text-muted-foreground text-center">
+                          Slot disponible
+                        </p>
+                      </div>
+                    )}
 
-                  {/* Interviewer (if assigned) */}
-                  {allocation.interviewer_name && (
-                    <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
-                      Entrevistador: {allocation.interviewer_name}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                    {/* Interviewer (if assigned) */}
+                    {allocation.interviewer_name && (
+                      <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
+                        Entrevistador: {allocation.interviewer_name}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       ))}
