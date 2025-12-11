@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Building2, Calendar, Users, Clock, MapPin, FileText, Linkedin } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-
+import { AvailableEventsSection } from '@/components/company/AvailableEventsSection';
 interface SlotAllocationWithBooking {
   id: string;
   company_name: string;
@@ -228,8 +228,8 @@ export default function CompanyDashboard() {
     );
   }
 
-  // Empty state - no company name or no allocations
-  if (!profile?.company_name || totalSlots === 0) {
+  // Empty state - no company name
+  if (!profile?.company_name) {
     return (
       <div className="space-y-6">
         <div>
@@ -243,12 +243,36 @@ export default function CompanyDashboard() {
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Building2 className="h-16 w-16 text-muted-foreground/50 mb-4" />
             <h2 className="text-xl font-semibold text-foreground mb-2">
-              Hola {profile?.full_name || profile?.company_name || 'Empresa'}, tu agenda aún no está configurada
+              Hola {profile?.full_name || 'Empresa'}, tu perfil no está completo
             </h2>
             <p className="text-muted-foreground max-w-md">
-              {!profile?.company_name 
-                ? 'Por favor, actualiza tu perfil con el nombre de tu empresa para ver tus slots asignados.'
-                : 'Aún no tienes slots de entrevista asignados. Contacta al organizador del evento para que te asignen horarios.'}
+              Por favor, actualiza tu perfil con el nombre de tu empresa para poder inscribirte en eventos.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // State with no allocations yet - show available events
+  if (totalSlots === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard de {profile.company_name}</h1>
+          <p className="text-muted-foreground">
+            Gestiona tus entrevistas y candidatos
+          </p>
+        </div>
+
+        <AvailableEventsSection companyName={profile.company_name} />
+
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Calendar className="h-12 w-12 text-muted-foreground/50 mb-3" />
+            <h3 className="font-semibold text-foreground mb-1">Aún no tienes slots asignados</h3>
+            <p className="text-sm text-muted-foreground max-w-md">
+              Inscríbete en los eventos disponibles arriba para empezar a recibir candidatos.
             </p>
           </CardContent>
         </Card>
@@ -321,7 +345,13 @@ export default function CompanyDashboard() {
         </Card>
       </div>
 
-      {/* Slots Grid by Event */}
+      {/* Available Events Section */}
+      <AvailableEventsSection companyName={profile.company_name} />
+
+      {/* My Slots Grid by Event */}
+      <div>
+        <h2 className="text-xl font-semibold text-foreground mb-4">Mis Inscripciones</h2>
+      </div>
       {allocationsByEvent && Object.values(allocationsByEvent).map(({ event, allocations: eventAllocations }) => (
         <div key={event.id} className="space-y-4">
           {/* Event Header */}
