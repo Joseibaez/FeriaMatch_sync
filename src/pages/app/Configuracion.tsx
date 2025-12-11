@@ -6,28 +6,63 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Bell, Shield, Palette, Loader2 } from "lucide-react";
+import { User, Bell, Shield, Palette, Loader2, Phone, Linkedin, FileText } from "lucide-react";
 import { BackButton } from "@/components/navigation/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { z } from "zod";
+
+// Validation schema for profile fields
+const profileSchema = z.object({
+  full_name: z.string().max(100, "El nombre no puede exceder 100 caracteres"),
+  company_name: z.string().max(100, "El nombre de empresa no puede exceder 100 caracteres"),
+  phone: z.string().max(20, "El teléfono no puede exceder 20 caracteres").optional().or(z.literal("")),
+  linkedin_url: z.string()
+    .refine((val) => !val || val.includes("linkedin.com"), {
+      message: "Debe ser una URL válida de LinkedIn"
+    })
+    .optional()
+    .or(z.literal("")),
+  cv_url: z.string().url("Debe ser una URL válida").optional().or(z.literal("")),
+});
+
+// Password validation schema
+const passwordSchema = z.object({
+  newPassword: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirmPassword"],
+});
 
 interface ProfileData {
   full_name: string;
   email: string;
   company_name: string;
+  phone: string;
+  linkedin_url: string;
+  cv_url: string;
 }
 
 const Configuracion = () => {
   const { user, userRole } = useAuth();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [profile, setProfile] = useState<ProfileData>({
     full_name: "",
     email: "",
     company_name: "",
+    phone: "",
+    linkedin_url: "",
+    cv_url: "",
   });
+  const [passwords, setPasswords] = useState({
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -35,39 +70,57 @@ const Configuracion = () => {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name, email, company_name")
+        .select("full_name, email, company_name, phone, linkedin_url, cv_url")
         .eq("id", user.id)
         .maybeSingle();
 
       if (error) {
         console.error("Error fetching profile:", error);
-        toast({
-          title: "Error",
-          description: "No se pudo cargar el perfil",
-          variant: "destructive",
-        });
+        toast.error("No se pudo cargar el perfil");
       } else if (data) {
         setProfile({
           full_name: data.full_name || "",
           email: data.email || "",
           company_name: data.company_name || "",
+          phone: data.phone || "",
+          linkedin_url: data.linkedin_url || "",
+          cv_url: data.cv_url || "",
         });
       }
       setLoading(false);
     };
 
     fetchProfile();
-  }, [user?.id, toast]);
+  }, [user?.id]);
 
   const handleSave = async () => {
     if (!user?.id) return;
 
+    // Validate profile data
+    const validation = profileSchema.safeParse(profile);
+    if (!validation.success) {
+      const fieldErrors: Record<string, string> = {};
+      validation.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          fieldErrors[err.path[0] as string] = err.message;
+        }
+      });
+      setErrors(fieldErrors);
+      toast.error("Por favor corrige los errores en el formulario");
+      return;
+    }
+
+    setErrors({});
     setSaving(true);
+
     const { error } = await supabase
       .from("profiles")
       .update({
         full_name: profile.full_name,
         company_name: profile.company_name,
+        phone: profile.phone || null,
+        linkedin_url: profile.linkedin_url || null,
+        cv_url: profile.cv_url || null,
       })
       .eq("id", user.id);
 
@@ -75,16 +128,45 @@ const Configuracion = () => {
 
     if (error) {
       console.error("Error updating profile:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el perfil",
-        variant: "destructive",
-      });
+      toast.error("No se pudo actualizar el perfil");
     } else {
-      toast({
-        title: "Éxito",
-        description: "Perfil actualizado correctamente",
+      toast.success("Perfil actualizado correctamente");
+    }
+  };
+
+  const handleChangePassword = async () => {
+    // Validate passwords
+    const validation = passwordSchema.safeParse(passwords);
+    if (!validation.success) {
+      const fieldErrors: Record<string, string> = {};
+      validation.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          fieldErrors[err.path[0] as string] = err.message;
+        }
       });
+      setErrors(fieldErrors);
+      return;
+    }
+
+    setErrors({});
+    setChangingPassword(true);
+
+    const { error } = await supabase.auth.updateUser({
+      password: passwords.newPassword,
+    });
+
+    setChangingPassword(false);
+
+    if (error) {
+      console.error("Error changing password:", error);
+      if (error.message.includes("should be at least")) {
+        toast.error("La contraseña es muy corta");
+      } else {
+        toast.error("No se pudo cambiar la contraseña: " + error.message);
+      }
+    } else {
+      toast.success("Contraseña actualizada correctamente");
+      setPasswords({ newPassword: "", confirmPassword: "" });
     }
   };
 
@@ -179,6 +261,9 @@ const Configuracion = () => {
                       setProfile({ ...profile, full_name: e.target.value })
                     }
                   />
+                  {errors.full_name && (
+                    <p className="text-sm text-destructive">{errors.full_name}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -191,6 +276,7 @@ const Configuracion = () => {
                   />
                 </div>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="organizacion">Organización</Label>
                 <Input
@@ -201,7 +287,78 @@ const Configuracion = () => {
                     setProfile({ ...profile, company_name: e.target.value })
                   }
                 />
+                {errors.company_name && (
+                  <p className="text-sm text-destructive">{errors.company_name}</p>
+                )}
               </div>
+
+              <Separator />
+
+              {/* Contact Information */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  Información de Contacto
+                </h3>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Teléfono</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+34 600 000 000"
+                    value={profile.phone}
+                    onChange={(e) =>
+                      setProfile({ ...profile, phone: e.target.value })
+                    }
+                  />
+                  {errors.phone && (
+                    <p className="text-sm text-destructive">{errors.phone}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="linkedin" className="flex items-center gap-2">
+                    <Linkedin className="h-4 w-4" />
+                    LinkedIn
+                  </Label>
+                  <Input
+                    id="linkedin"
+                    type="url"
+                    placeholder="https://linkedin.com/in/tu-perfil"
+                    value={profile.linkedin_url}
+                    onChange={(e) =>
+                      setProfile({ ...profile, linkedin_url: e.target.value })
+                    }
+                  />
+                  {errors.linkedin_url && (
+                    <p className="text-sm text-destructive">{errors.linkedin_url}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cv" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    CV (URL)
+                  </Label>
+                  <Input
+                    id="cv"
+                    type="url"
+                    placeholder="https://drive.google.com/tu-cv.pdf"
+                    value={profile.cv_url}
+                    onChange={(e) =>
+                      setProfile({ ...profile, cv_url: e.target.value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Puedes subir tu CV a Google Drive o Dropbox y pegar el enlace aquí
+                  </p>
+                  {errors.cv_url && (
+                    <p className="text-sm text-destructive">{errors.cv_url}</p>
+                  )}
+                </div>
+              </div>
+
               <Button variant="default" onClick={handleSave} disabled={saving}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Guardar cambios
@@ -265,21 +422,46 @@ const Configuracion = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña actual</Label>
-                <Input id="password" type="password" placeholder="••••••••" />
-              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="new-password">Nueva contraseña</Label>
-                  <Input id="new-password" type="password" placeholder="••••••••" />
+                  <Input
+                    id="new-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={passwords.newPassword}
+                    onChange={(e) =>
+                      setPasswords({ ...passwords, newPassword: e.target.value })
+                    }
+                  />
+                  {errors.newPassword && (
+                    <p className="text-sm text-destructive">{errors.newPassword}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirm-password">Confirmar contraseña</Label>
-                  <Input id="confirm-password" type="password" placeholder="••••••••" />
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={passwords.confirmPassword}
+                    onChange={(e) =>
+                      setPasswords({ ...passwords, confirmPassword: e.target.value })
+                    }
+                  />
+                  {errors.confirmPassword && (
+                    <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+                  )}
                 </div>
               </div>
-              <Button variant="outline">Cambiar contraseña</Button>
+              <Button
+                variant="outline"
+                onClick={handleChangePassword}
+                disabled={changingPassword || !passwords.newPassword}
+              >
+                {changingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Cambiar contraseña
+              </Button>
             </CardContent>
           </Card>
         </div>
