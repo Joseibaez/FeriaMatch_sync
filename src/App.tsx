@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // Auth & Context
 import { AuthProvider } from "./contexts/AuthContext";
@@ -63,7 +63,8 @@ const App = () => (
               <Route index element={<Dashboard />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="agenda/:eventId" element={<EventoAgenda />} />
-              <Route path="agenda" element={<MiAgenda />} />
+              {/* Redirect /app/agenda to /app/empresa for recruiters - MiAgenda removed from nav */}
+              <Route path="agenda" element={<Navigate to="/app/empresa" replace />} />
               <Route path="explorar" element={<EventFinder />} />
               
               {/* Admin routes */}
