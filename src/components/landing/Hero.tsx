@@ -19,7 +19,7 @@ const Hero = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
       
       <div className="container relative py-16 md:py-24 lg:py-32">
-        <div className="mx-auto max-w-4xl text-center bg-destructive-foreground">
+        <div className="mx-auto max-w-4xl text-center bg-inherit border-none">
           {/* Logo */}
           <div className="mb-8">
             <img src={logoFeriaMatch} alt="Cámara Zaragoza | FeriaMatch" className="mx-auto h-16 w-auto md:h-20 lg:h-24" />
