@@ -2,8 +2,7 @@ import { Calendar } from "lucide-react";
 
 // Footer component for landing page
 const Footer = () => {
-  return (
-    <footer className="border-t bg-muted/30">
+  return <footer className="border-t bg-muted/30">
       <div className="container py-12">
         <div className="grid gap-8 md:grid-cols-4">
           {/* Brand */}
@@ -34,9 +33,9 @@ const Footer = () => {
           <div>
             <h4 className="mb-4 text-sm font-semibold text-foreground">Contacto</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground">Soporte</a></li>
-              <li><a href="#" className="hover:text-foreground">Ventas</a></li>
-              <li><a href="#" className="hover:text-foreground">Prensa</a></li>
+              <li>empleo@camarazaragoza.com<a href="#" className="hover:text-foreground">Soporte</a></li>
+              
+              
             </ul>
           </div>
         </div>
@@ -46,8 +45,6 @@ const Footer = () => {
           <p>© {new Date().getFullYear()} FeriaMatch. Todos los derechos reservados.</p>
         </div>
       </div>
-    </footer>
-  );
+    </footer>;
 };
-
 export default Footer;
