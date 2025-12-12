@@ -59,12 +59,6 @@ const navigationItems: NavItem[] = [
     roles: ['recruiter']
   },
   { 
-    title: "Mi Agenda", 
-    url: "/app/agenda", 
-    icon: CalendarDays,
-    roles: ['recruiter']
-  },
-  { 
     title: "Explorar Eventos", 
     url: "/app/explorar", 
     icon: Search,
