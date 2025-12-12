@@ -24,7 +24,7 @@ const Footer = () => {
             <h4 className="mb-4 text-sm font-semibold text-foreground">Plataforma</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="#" className="hover:text-foreground">Características</a></li>
-              <li><a href="#" className="hover:text-foreground">Precios</a></li>
+              
               <li><a href="#" className="hover:text-foreground">Documentación</a></li>
             </ul>
           </div>

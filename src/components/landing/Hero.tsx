@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Calendar, Users, Building2, ArrowRight } from "lucide-react";
+import { Calendar, Users, ArrowRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDemo } from "@/contexts/DemoContext";
 import logoFeriaMatch from "@/assets/logo-feriamatch.png";
@@ -7,20 +7,19 @@ import logoFeriaMatch from "@/assets/logo-feriamatch.png";
 // Hero section for FeriaMatch landing page
 const Hero = () => {
   const navigate = useNavigate();
-  const { enterDemoMode } = useDemo();
-  
+  const {
+    enterDemoMode
+  } = useDemo();
   const handleDemoClick = () => {
     enterDemoMode();
     navigate("/app");
   };
-
-  return (
-    <section className="relative overflow-hidden bg-background">
+  return <section className="relative overflow-hidden bg-background">
       {/* Subtle gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
       
       <div className="container relative py-16 md:py-24 lg:py-32">
-        <div className="mx-auto max-w-4xl text-center">
+        <div className="mx-auto max-w-4xl text-center bg-destructive-foreground">
           {/* Logo */}
           <div className="mb-8">
             <img src={logoFeriaMatch} alt="Cámara Zaragoza | FeriaMatch" className="mx-auto h-16 w-auto md:h-20 lg:h-24" />
@@ -60,30 +59,23 @@ const Hero = () => {
           {/* Stats */}
           <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-3">
             <div className="flex flex-col items-center">
-              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                <Building2 className="h-6 w-6 text-primary" />
-              </div>
-              <p className="text-2xl font-bold text-foreground">500+</p>
+              
+              <p className="text-2xl font-bold text-foreground">+50</p>
               <p className="text-sm text-muted-foreground">Empresas participantes</p>
             </div>
             <div className="flex flex-col items-center">
-              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
-                <Users className="h-6 w-6 text-accent" />
-              </div>
+              
               <p className="text-2xl font-bold text-foreground">1,000+</p>
               <p className="text-sm text-muted-foreground">Candidatos conectados</p>
             </div>
             <div className="flex flex-col items-center">
-              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                <Calendar className="h-6 w-6 text-primary" />
-              </div>
-              <p className="text-2xl font-bold text-foreground">50+</p>
+              
+              <p className="text-2xl font-bold text-foreground">20+</p>
               <p className="text-sm text-muted-foreground">Ferias organizadas</p>
             </div>
           </div>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
 export default Hero;
