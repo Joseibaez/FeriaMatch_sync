@@ -577,6 +577,46 @@ export default function CompanyDashboard() {
                           </div>
                         </div>
 
+                        {/* CV/LinkedIn links for pending and confirmed */}
+                        {(isPending || isConfirmed) && (allocation.booking.candidate.cv_url || allocation.booking.candidate.linkedin_url) && (
+                          <div className="flex gap-2 pt-2">
+                            {allocation.booking.candidate.cv_url && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 h-7 text-xs"
+                                asChild
+                              >
+                                <a
+                                  href={allocation.booking.candidate.cv_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <FileText className="h-3 w-3 mr-1" />
+                                  Ver CV
+                                </a>
+                              </Button>
+                            )}
+                            {allocation.booking.candidate.linkedin_url && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 h-7 text-xs"
+                                asChild
+                              >
+                                <a
+                                  href={allocation.booking.candidate.linkedin_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <Linkedin className="h-3 w-3 mr-1" />
+                                  LinkedIn
+                                </a>
+                              </Button>
+                            )}
+                          </div>
+                        )}
+
                         {/* Approval/Rejection Buttons for Pending */}
                         {isPending && (
                           <div className="flex gap-2 pt-2 border-t">
@@ -615,49 +655,11 @@ export default function CompanyDashboard() {
                           </div>
                         )}
 
-                        {/* Action Buttons for Confirmed */}
-                        {isConfirmed && (
-                          <div className="flex gap-2">
-                            {allocation.booking.candidate.linkedin_url && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1 h-8 text-xs"
-                                asChild
-                              >
-                                <a
-                                  href={allocation.booking.candidate.linkedin_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <Linkedin className="h-3 w-3 mr-1" />
-                                  LinkedIn
-                                </a>
-                              </Button>
-                            )}
-                            {allocation.booking.candidate.cv_url && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1 h-8 text-xs"
-                                asChild
-                              >
-                                <a
-                                  href={allocation.booking.candidate.cv_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <FileText className="h-3 w-3 mr-1" />
-                                  CV
-                                </a>
-                              </Button>
-                            )}
-                            {!allocation.booking.candidate.linkedin_url && !allocation.booking.candidate.cv_url && (
-                              <p className="text-xs text-muted-foreground italic">
-                                Sin documentos adjuntos
-                              </p>
-                            )}
-                          </div>
+                        {/* Message when no documents for pending/confirmed */}
+                        {(isPending || isConfirmed) && !allocation.booking.candidate.linkedin_url && !allocation.booking.candidate.cv_url && (
+                          <p className="text-xs text-muted-foreground italic pt-2">
+                            Sin documentos adjuntos
+                          </p>
                         )}
                       </div>
                     ) : (
