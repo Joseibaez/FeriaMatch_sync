@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,12 +7,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Building2, Calendar, Users, Clock, MapPin, FileText, Linkedin, Download, Check, X, Loader2 } from 'lucide-react';
+import { Building2, Calendar, Users, Clock, MapPin, FileText, Linkedin, Download, Check, X, Loader2, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AvailableEventsSection } from '@/components/company/AvailableEventsSection';
 import { generateCSV, downloadCSV, formatDateForFilename, CSVColumn } from '@/lib/csvExport';
 import { toast } from 'sonner';
+import { EditStandDialog } from '@/components/slots/EditStandDialog';
 
 interface SlotAllocationWithBooking {
   id: string;
@@ -47,6 +49,12 @@ interface SlotAllocationWithBooking {
 export default function CompanyDashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [editStandOpen, setEditStandOpen] = useState(false);
+  const [selectedAllocation, setSelectedAllocation] = useState<{
+    id: string;
+    company_name: string;
+    stand_number: string | null;
+  } | null>(null);
 
   // Fetch the recruiter's profile to get company_name and sector
   const { data: profile, isLoading: profileLoading } = useQuery({
@@ -545,12 +553,23 @@ export default function CompanyDashboard() {
                         {isPending ? 'Pendiente' : isConfirmed ? 'Confirmado' : isRejected ? 'Rechazado' : 'Disponible'}
                       </Badge>
                     </div>
-                    {allocation.stand_number && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                        <MapPin className="h-3 w-3" />
-                        Stand {allocation.stand_number}
-                      </div>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs text-muted-foreground hover:text-foreground mt-1 px-2 -ml-2"
+                      onClick={() => {
+                        setSelectedAllocation({
+                          id: allocation.id,
+                          company_name: allocation.company_name,
+                          stand_number: allocation.stand_number,
+                        });
+                        setEditStandOpen(true);
+                      }}
+                    >
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {allocation.stand_number ? `Stand ${allocation.stand_number}` : 'Asignar Stand'}
+                      <Pencil className="h-3 w-3 ml-1" />
+                    </Button>
                   </CardHeader>
 
                   {/* Card Body: Candidate Info */}
@@ -683,6 +702,13 @@ export default function CompanyDashboard() {
           </div>
         </div>
       ))}
+
+      {/* Edit Stand Dialog */}
+      <EditStandDialog
+        allocation={selectedAllocation}
+        open={editStandOpen}
+        onOpenChange={setEditStandOpen}
+      />
     </div>
   );
 }
