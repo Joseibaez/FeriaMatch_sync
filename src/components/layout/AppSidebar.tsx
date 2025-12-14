@@ -11,7 +11,8 @@ import {
   User,
   Users,
   Search,
-  LogOut
+  LogOut,
+  Home
 } from "lucide-react";
 import {
   Sidebar,
@@ -40,6 +41,18 @@ interface NavItem {
 
 // Navigation items with role restrictions
 const navigationItems: NavItem[] = [
+  { 
+    title: "Inicio", 
+    url: "/app/admin", 
+    icon: Home,
+    roles: ['admin']
+  },
+  { 
+    title: "Inicio", 
+    url: "/app/empresa", 
+    icon: Home,
+    roles: ['recruiter']
+  },
   { 
     title: "Dashboard", 
     url: "/app", 
