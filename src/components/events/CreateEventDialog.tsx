@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, Upload, X, ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,6 @@ import {
 const eventSchema = z.object({
   title: z.string().min(1, "El título es requerido").max(100, "Máximo 100 caracteres"),
   description: z.string().max(1000, "Máximo 1000 caracteres").optional(),
-  image_url: z.string().url("URL inválida").optional().or(z.literal("")),
   event_date: z.date({ required_error: "La fecha es requerida" }),
   start_time: z.string().min(1, "La hora de inicio es requerida"),
   end_time: z.string().min(1, "La hora de fin es requerida"),
@@ -69,6 +68,10 @@ interface CreateEventDialogProps {
 
 export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEventDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const form = useForm<EventFormData>({
@@ -76,20 +79,79 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
     defaultValues: {
       title: "",
       description: "",
-      image_url: "",
       start_time: "09:00",
       end_time: "18:00",
       slot_duration_minutes: 30,
     },
   });
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Error",
+          description: "Por favor selecciona un archivo de imagen válido.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "La imagen no debe superar los 5MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setBannerFile(file);
+      setBannerPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removeBanner = () => {
+    setBannerFile(null);
+    setBannerPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const uploadBanner = async (file: File): Promise<string | null> => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${crypto.randomUUID()}.${fileExt}`;
+    const filePath = fileName;
+
+    const { error: uploadError } = await supabase.storage
+      .from("event-banners")
+      .upload(filePath, file);
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("event-banners")
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  };
+
   const onSubmit = async (data: EventFormData) => {
     setIsSubmitting(true);
     try {
+      let imageUrl: string | null = null;
+
+      if (bannerFile) {
+        setIsUploading(true);
+        imageUrl = await uploadBanner(bannerFile);
+        setIsUploading(false);
+      }
+
       const { error } = await supabase.from("events").insert({
         title: data.title,
         description: data.description || null,
-        image_url: data.image_url || null,
+        image_url: imageUrl,
         event_date: format(data.event_date, "yyyy-MM-dd"),
         start_time: data.start_time,
         end_time: data.end_time,
@@ -104,6 +166,8 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
       });
 
       form.reset();
+      setBannerFile(null);
+      setBannerPreview(null);
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
@@ -114,6 +178,7 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
       });
     } finally {
       setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 
@@ -163,24 +228,51 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
               )}
             />
 
-            {/* Image URL */}
-            <FormField
-              control={form.control}
-              name="image_url"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>URL del Banner (opcional)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="url"
-                      placeholder="https://ejemplo.com/imagen.jpg" 
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+            {/* Image Upload */}
+            <div className="space-y-2">
+              <FormLabel>Banner del Evento (opcional)</FormLabel>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              
+              {bannerPreview ? (
+                <div className="relative rounded-lg overflow-hidden border border-border">
+                  <img 
+                    src={bannerPreview} 
+                    alt="Preview del banner" 
+                    className="w-full h-32 object-cover"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8"
+                    onClick={removeBanner}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-32 border-dashed flex flex-col gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    Haz clic para subir una imagen
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    PNG, JPG hasta 5MB
+                  </span>
+                </Button>
               )}
-            />
+            </div>
 
             {/* Date */}
             <FormField
@@ -293,9 +385,9 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Crear Evento
+              <Button type="submit" disabled={isSubmitting || isUploading}>
+                {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isUploading ? "Subiendo imagen..." : "Crear Evento"}
               </Button>
             </div>
           </form>
