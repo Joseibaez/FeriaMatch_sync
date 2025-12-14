@@ -459,12 +459,7 @@ const PublicSlotCard = ({
                           </Badge> : isFull ? <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200">
                           Completo
                         </Badge> : <Button size="sm" variant="secondary" onClick={() => onBook(allocation.id)} disabled={isCurrentlyBooking} className="h-7 text-xs px-3 gap-1 bg-primary">
-                          {isCurrentlyBooking ? <Loader2 className="h-3 w-3 animate-spin" /> : <>
-                              Solicitar
-                              <span className="text-muted-foreground">
-                                ({spotsLeft} hueco{spotsLeft > 1 ? "s" : ""})
-                              </span>
-                            </>}
+{isCurrentlyBooking ? <Loader2 className="h-3 w-3 animate-spin" /> : "Solicitar"}
                         </Button>}
                     </div>}
                 </div>;
