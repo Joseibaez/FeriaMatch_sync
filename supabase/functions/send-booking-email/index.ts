@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -22,6 +23,27 @@ interface BookingRequestEmailRequest {
   companyName?: string;
 }
 
+// Simple validation helpers
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) && email.length <= 255;
+};
+
+const isValidString = (str: string | undefined | null, maxLength: number): boolean => {
+  if (!str) return true; // optional fields
+  return typeof str === 'string' && str.length <= maxLength;
+};
+
+const sanitizeHtml = (str: string | undefined | null): string => {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -29,10 +51,128 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("No authorization header provided");
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - No authorization header' }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Create Supabase client with user's JWT
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error("Authentication failed:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - Invalid token' }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    console.log("Authenticated user:", user.id);
+
+    // Get user role for authorization
+    const { data: userRoleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (roleError) {
+      console.error("Failed to fetch user role:", roleError.message);
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - Could not verify user role' }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const userRole = userRoleData?.role;
+    console.log("User role:", userRole);
+
     const data: BookingRequestEmailRequest = await req.json();
     
     console.log("Processing email request:", data.type);
-    console.log("Data received:", JSON.stringify(data, null, 2));
+
+    // Validate email type
+    if (!['request_to_company', 'approval_to_candidate'].includes(data.type)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid email type' }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Authorization checks based on email type
+    if (data.type === "request_to_company") {
+      // Only candidates can request interviews
+      if (userRole !== 'candidate') {
+        console.error("Non-candidate trying to send request_to_company email");
+        return new Response(
+          JSON.stringify({ error: 'Forbidden - Only candidates can request interviews' }),
+          { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+    } else if (data.type === "approval_to_candidate") {
+      // Only recruiters and admins can approve bookings
+      if (!['recruiter', 'admin'].includes(userRole)) {
+        console.error("Non-recruiter/admin trying to send approval email");
+        return new Response(
+          JSON.stringify({ error: 'Forbidden - Only recruiters can approve bookings' }),
+          { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+    }
+
+    // Validate input fields
+    if (data.companyEmail && !isValidEmail(data.companyEmail)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid company email format' }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (data.candidateEmail && !isValidEmail(data.candidateEmail)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid candidate email format' }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (!isValidString(data.candidateName, 100) || 
+        !isValidString(data.companyName, 100) ||
+        !isValidString(data.date, 50) ||
+        !isValidString(data.time, 50)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid input: field too long' }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Validate CV URL if provided
+    if (data.candidateCvUrl) {
+      try {
+        const url = new URL(data.candidateCvUrl);
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          throw new Error('Invalid protocol');
+        }
+        if (data.candidateCvUrl.length > 500) {
+          throw new Error('URL too long');
+        }
+      } catch {
+        return new Response(
+          JSON.stringify({ error: 'Invalid CV URL format' }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+    }
 
     let emailResponse;
 
@@ -46,10 +186,16 @@ const handler = async (req: Request): Promise<Response> => {
 
       console.log("Sending booking request notification to company:", companyEmail);
 
+      // Sanitize user inputs for HTML
+      const safeCandidateName = sanitizeHtml(candidateName);
+      const safeCandidateEmail = sanitizeHtml(candidateEmail);
+      const safeDate = sanitizeHtml(date);
+      const safeTime = sanitizeHtml(time);
+
       const cvSection = candidateCvUrl 
         ? `<tr>
              <td style="padding-top: 12px;">
-               <a href="${candidateCvUrl}" target="_blank" style="display: inline-block; background-color: #6366f1; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">
+               <a href="${encodeURI(candidateCvUrl)}" target="_blank" style="display: inline-block; background-color: #6366f1; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">
                  📄 Ver CV del Candidato
                </a>
              </td>
@@ -59,7 +205,7 @@ const handler = async (req: Request): Promise<Response> => {
       emailResponse = await resend.emails.send({
         from: "FeriaMatch <onboarding@resend.dev>",
         to: [companyEmail],
-        subject: `Nueva Solicitud de Entrevista: ${candidateName}`,
+        subject: `Nueva Solicitud de Entrevista: ${safeCandidateName}`,
         html: `
           <!DOCTYPE html>
           <html lang="es">
@@ -83,7 +229,7 @@ const handler = async (req: Request): Promise<Response> => {
                     <tr>
                       <td style="padding: 32px 24px;">
                         <p style="margin: 0 0 24px; color: #3f3f46; font-size: 16px; line-height: 1.6;">
-                          <strong>${candidateName}</strong> ha solicitado una entrevista contigo.
+                          <strong>${safeCandidateName}</strong> ha solicitado una entrevista contigo.
                         </p>
                         
                         <!-- Details Card -->
@@ -94,25 +240,25 @@ const handler = async (req: Request): Promise<Response> => {
                                 <tr>
                                   <td style="padding-bottom: 12px;">
                                     <span style="color: #92400e; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Candidato</span>
-                                    <p style="margin: 4px 0 0; color: #78350f; font-size: 16px; font-weight: 600;">${candidateName}</p>
+                                    <p style="margin: 4px 0 0; color: #78350f; font-size: 16px; font-weight: 600;">${safeCandidateName}</p>
                                   </td>
                                 </tr>
                                 <tr>
                                   <td style="padding-bottom: 12px;">
                                     <span style="color: #92400e; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Email</span>
-                                    <p style="margin: 4px 0 0; color: #78350f; font-size: 14px;">${candidateEmail}</p>
+                                    <p style="margin: 4px 0 0; color: #78350f; font-size: 14px;">${safeCandidateEmail}</p>
                                   </td>
                                 </tr>
                                 <tr>
                                   <td style="padding-bottom: 12px;">
                                     <span style="color: #92400e; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Fecha</span>
-                                    <p style="margin: 4px 0 0; color: #78350f; font-size: 16px; font-weight: 600;">📅 ${date}</p>
+                                    <p style="margin: 4px 0 0; color: #78350f; font-size: 16px; font-weight: 600;">📅 ${safeDate}</p>
                                   </td>
                                 </tr>
                                 <tr>
                                   <td>
                                     <span style="color: #92400e; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Hora</span>
-                                    <p style="margin: 4px 0 0; color: #78350f; font-size: 16px; font-weight: 600;">⏰ ${time}</p>
+                                    <p style="margin: 4px 0 0; color: #78350f; font-size: 16px; font-weight: 600;">⏰ ${safeTime}</p>
                                   </td>
                                 </tr>
                                 ${cvSection}
@@ -154,6 +300,12 @@ const handler = async (req: Request): Promise<Response> => {
 
       console.log("Sending approval notification to candidate:", candidateEmail);
 
+      // Sanitize user inputs for HTML
+      const safeCandidateName = sanitizeHtml(candidateName);
+      const safeCompanyName = sanitizeHtml(companyName);
+      const safeDate = sanitizeHtml(date);
+      const safeTime = sanitizeHtml(time);
+
       emailResponse = await resend.emails.send({
         from: "FeriaMatch <onboarding@resend.dev>",
         to: [candidateEmail],
@@ -181,11 +333,11 @@ const handler = async (req: Request): Promise<Response> => {
                     <tr>
                       <td style="padding: 32px 24px;">
                         <p style="margin: 0 0 24px; color: #3f3f46; font-size: 16px; line-height: 1.6;">
-                          Hola <strong>${candidateName}</strong>,
+                          Hola <strong>${safeCandidateName}</strong>,
                         </p>
                         
                         <p style="margin: 0 0 24px; color: #3f3f46; font-size: 16px; line-height: 1.6;">
-                          ¡Buenas noticias! <strong>${companyName}</strong> ha aceptado tu solicitud de entrevista.
+                          ¡Buenas noticias! <strong>${safeCompanyName}</strong> ha aceptado tu solicitud de entrevista.
                         </p>
                         
                         <!-- Details Card -->
@@ -196,19 +348,19 @@ const handler = async (req: Request): Promise<Response> => {
                                 <tr>
                                   <td style="padding-bottom: 12px;">
                                     <span style="color: #166534; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Empresa</span>
-                                    <p style="margin: 4px 0 0; color: #14532d; font-size: 16px; font-weight: 600;">${companyName}</p>
+                                    <p style="margin: 4px 0 0; color: #14532d; font-size: 16px; font-weight: 600;">${safeCompanyName}</p>
                                   </td>
                                 </tr>
                                 <tr>
                                   <td style="padding-bottom: 12px;">
                                     <span style="color: #166534; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Fecha</span>
-                                    <p style="margin: 4px 0 0; color: #14532d; font-size: 16px; font-weight: 600;">📅 ${date}</p>
+                                    <p style="margin: 4px 0 0; color: #14532d; font-size: 16px; font-weight: 600;">📅 ${safeDate}</p>
                                   </td>
                                 </tr>
                                 <tr>
                                   <td>
                                     <span style="color: #166534; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Hora</span>
-                                    <p style="margin: 4px 0 0; color: #14532d; font-size: 16px; font-weight: 600;">⏰ ${time}</p>
+                                    <p style="margin: 4px 0 0; color: #14532d; font-size: 16px; font-weight: 600;">⏰ ${safeTime}</p>
                                   </td>
                                 </tr>
                               </table>
