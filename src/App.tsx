@@ -66,6 +66,7 @@ const App = () => (
               {/* Redirect /app/agenda to /app/empresa for recruiters - MiAgenda removed from nav */}
               <Route path="agenda" element={<Navigate to="/app/empresa" replace />} />
               <Route path="explorar" element={<EventFinder />} />
+              <Route path="evento/:id" element={<EventoDetalle />} />
               
               {/* Admin routes */}
               <Route path="admin" element={

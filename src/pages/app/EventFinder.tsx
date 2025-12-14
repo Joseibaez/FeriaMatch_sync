@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, Clock, MapPin, Users, Building2, ArrowRight, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Building2, ArrowRight, ChevronLeft, ChevronRight, Search, X, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Helper to determine event status
@@ -331,21 +331,31 @@ const EventFinder = () => {
                       </div>
                     </div>
 
-                    {/* CTA Button */}
-                    <Button
-                      className="w-full gap-2 group-hover:bg-primary/90"
-                      onClick={() => navigate(`/app/agenda/${event.id}`)}
-                      disabled={status === "past"}
-                    >
-                      {status === "past" ? (
-                        "Evento finalizado"
-                      ) : (
-                        <>
-                          Ver Agenda
-                          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                        </>
-                      )}
-                    </Button>
+                    {/* CTA Buttons */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1 gap-2"
+                        onClick={() => navigate(`/app/evento/${event.id}`)}
+                      >
+                        <Eye className="h-4 w-4" />
+                        Ver Detalle
+                      </Button>
+                      <Button
+                        className="flex-1 gap-2 group-hover:bg-primary/90"
+                        onClick={() => navigate(`/app/agenda/${event.id}`)}
+                        disabled={status === "past"}
+                      >
+                        {status === "past" ? (
+                          "Finalizado"
+                        ) : (
+                          <>
+                            Agenda
+                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               );
