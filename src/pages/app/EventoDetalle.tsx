@@ -414,27 +414,29 @@ const EventoDetalle = () => {
         </Card>
       </div>
 
-      {/* Generate Agenda Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Layers className="h-5 w-5" />
-            Estructura de Agenda
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Genera automáticamente los slots de tiempo basándote en la configuración del evento.
-            Cada slot tendrá una duración de {event.slot_duration_minutes} minutos.
-          </p>
-          <Button 
-            onClick={handleGenerateSlots}
-            disabled={generateSlotsMutation.isPending}
-          >
-            {generateSlotsMutation.isPending ? "Generando..." : "Generar Estructura de Agenda"}
-          </Button>
-        </CardContent>
-      </Card>
+      {/* Generate Agenda Section - Admin Only */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Layers className="h-5 w-5" />
+              Estructura de Agenda
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Genera automáticamente los slots de tiempo basándote en la configuración del evento.
+              Cada slot tendrá una duración de {event.slot_duration_minutes} minutos.
+            </p>
+            <Button 
+              onClick={handleGenerateSlots}
+              disabled={generateSlotsMutation.isPending}
+            >
+              {generateSlotsMutation.isPending ? "Generando..." : "Generar Estructura de Agenda"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Slots Visualization */}
       {slotsLoading ? (
