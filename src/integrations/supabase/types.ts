@@ -49,27 +49,33 @@ export type Database = {
       events: {
         Row: {
           created_at: string
+          description: string | null
           end_time: string
           event_date: string
           id: string
+          image_url: string | null
           slot_duration_minutes: number
           start_time: string
           title: string
         }
         Insert: {
           created_at?: string
+          description?: string | null
           end_time: string
           event_date: string
           id?: string
+          image_url?: string | null
           slot_duration_minutes?: number
           start_time: string
           title: string
         }
         Update: {
           created_at?: string
+          description?: string | null
           end_time?: string
           event_date?: string
           id?: string
+          image_url?: string | null
           slot_duration_minutes?: number
           start_time?: string
           title?: string
