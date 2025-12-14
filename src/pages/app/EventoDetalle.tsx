@@ -303,67 +303,78 @@ const EventoDetalle = () => {
   const bookedSlots = totalSlots - freeSlots;
 
   return (
-    <div className="space-y-6">
-      <GoBackButton />
-
-      {/* Hero Section */}
-      <div 
-        className="relative rounded-xl overflow-hidden"
-        style={{
-          minHeight: event.image_url ? '280px' : 'auto',
-        }}
-      >
+    <div className="space-y-8">
+      {/* Hero Section - Full Width Banner */}
+      <div className="relative -mx-4 sm:-mx-6 lg:-mx-8">
         {event.image_url ? (
-          <>
+          <div className="relative w-full h-[320px] sm:h-[400px]">
             {/* Background Image */}
             <div 
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${event.image_url})` }}
             />
             {/* Dark Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
             {/* Content */}
-            <div className="relative z-10 p-6 sm:p-8 flex flex-col justify-end h-full min-h-[280px]">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="relative z-10 h-full flex flex-col justify-end p-6 sm:p-8 lg:p-12 max-w-5xl">
+              <div className="flex items-center gap-2 mb-3">
+                <Badge className="bg-primary/90 hover:bg-primary text-primary-foreground border-0">
+                  <Calendar className="mr-1.5 h-3.5 w-3.5" />
+                  {format(parseISO(event.event_date), "d MMM yyyy", { locale: es })}
+                </Badge>
                 <Badge variant="secondary" className="bg-white/20 text-white border-0 backdrop-blur-sm">
-                  <Settings className="mr-1 h-3 w-3" />
-                  Configuración
+                  <Clock className="mr-1.5 h-3.5 w-3.5" />
+                  {timeRange}
                 </Badge>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-2">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white mb-4">
                 {event.title}
               </h1>
-              <p className="text-white/80 capitalize mb-3">{formattedDate}</p>
-              {event.description && (
-                <p className="text-white/90 text-sm sm:text-base max-w-3xl leading-relaxed">
-                  {event.description}
-                </p>
-              )}
             </div>
-          </>
+          </div>
         ) : (
-          /* No Image - Simple Header */
-          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-xl p-6 sm:p-8 border border-border">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant="outline" className="bg-primary/5 text-primary">
-                <Settings className="mr-1 h-3 w-3" />
-                Configuración
-              </Badge>
+          /* No Image - Gradient Header */
+          <div className="bg-gradient-to-br from-primary/15 via-primary/5 to-background px-6 sm:px-8 lg:px-12 py-10 sm:py-14 border-b border-border">
+            <div className="max-w-5xl">
+              <div className="flex items-center gap-2 mb-3">
+                <Badge className="bg-primary text-primary-foreground">
+                  <Calendar className="mr-1.5 h-3.5 w-3.5" />
+                  {format(parseISO(event.event_date), "d MMM yyyy", { locale: es })}
+                </Badge>
+                <Badge variant="outline">
+                  <Clock className="mr-1.5 h-3.5 w-3.5" />
+                  {timeRange}
+                </Badge>
+              </div>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-foreground">
+                {event.title}
+              </h1>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-2">
-              {event.title}
-            </h1>
-            <p className="text-muted-foreground capitalize mb-3">{formattedDate}</p>
-            {event.description && (
-              <p className="text-muted-foreground text-sm sm:text-base max-w-3xl leading-relaxed">
-                {event.description}
-              </p>
-            )}
           </div>
         )}
       </div>
 
-      {/* Event details and metrics */}
+      {/* Back Button */}
+      <div className="pt-2">
+        <GoBackButton />
+      </div>
+
+      {/* Description Section */}
+      {event.description && (
+        <div className="prose prose-neutral dark:prose-invert max-w-none">
+          <div className="bg-card rounded-xl border border-border p-6 sm:p-8">
+            <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-primary" />
+              Acerca del Evento
+            </h2>
+            <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+              {event.description}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
