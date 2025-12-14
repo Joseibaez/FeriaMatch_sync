@@ -304,74 +304,59 @@ const EventoDetalle = () => {
 
   return (
     <div className="space-y-8">
-      {/* Hero Section - Full Width Banner */}
-      <div className="relative -mx-4 sm:-mx-6 lg:-mx-8">
-        {event.image_url ? (
-          <div className="relative w-full h-[320px] sm:h-[400px]">
-            {/* Background Image */}
+      {/* Hero Section - Full Width Banner (ALWAYS visible) */}
+      <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden">
+        <div className="relative w-full h-[280px] sm:h-[360px] lg:h-[400px]">
+          {/* Background: Image or Professional Blue Gradient Fallback */}
+          {event.image_url ? (
             <div 
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${event.image_url})` }}
             />
-            {/* Dark Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
-            {/* Content */}
-            <div className="relative z-10 h-full flex flex-col justify-end p-6 sm:p-8 lg:p-12 max-w-5xl">
-              <div className="flex items-center gap-2 mb-3">
-                <Badge className="bg-primary/90 hover:bg-primary text-primary-foreground border-0">
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800" />
+          )}
+          
+          {/* Dark Overlay for readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+          
+          {/* Hero Content */}
+          <div className="relative z-10 h-full flex flex-col justify-end p-6 sm:p-8 lg:p-12">
+            <div className="max-w-4xl">
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <Badge className="bg-white/90 text-primary hover:bg-white border-0 shadow-lg">
                   <Calendar className="mr-1.5 h-3.5 w-3.5" />
-                  {format(parseISO(event.event_date), "d MMM yyyy", { locale: es })}
+                  {format(parseISO(event.event_date), "EEEE, d 'de' MMMM", { locale: es })}
                 </Badge>
-                <Badge variant="secondary" className="bg-white/20 text-white border-0 backdrop-blur-sm">
+                <Badge className="bg-white/20 text-white border-0 backdrop-blur-sm">
                   <Clock className="mr-1.5 h-3.5 w-3.5" />
                   {timeRange}
                 </Badge>
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white mb-4">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white drop-shadow-lg">
                 {event.title}
               </h1>
             </div>
           </div>
-        ) : (
-          /* No Image - Gradient Header */
-          <div className="bg-gradient-to-br from-primary/15 via-primary/5 to-background px-6 sm:px-8 lg:px-12 py-10 sm:py-14 border-b border-border">
-            <div className="max-w-5xl">
-              <div className="flex items-center gap-2 mb-3">
-                <Badge className="bg-primary text-primary-foreground">
-                  <Calendar className="mr-1.5 h-3.5 w-3.5" />
-                  {format(parseISO(event.event_date), "d MMM yyyy", { locale: es })}
-                </Badge>
-                <Badge variant="outline">
-                  <Clock className="mr-1.5 h-3.5 w-3.5" />
-                  {timeRange}
-                </Badge>
-              </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-foreground">
-                {event.title}
-              </h1>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Back Button */}
-      <div className="pt-2">
+      <div>
         <GoBackButton />
       </div>
 
       {/* Description Section */}
       {event.description && (
-        <div className="prose prose-neutral dark:prose-invert max-w-none">
-          <div className="bg-card rounded-xl border border-border p-6 sm:p-8">
-            <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-              <ImageIcon className="h-5 w-5 text-primary" />
-              Acerca del Evento
-            </h2>
-            <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-              {event.description}
-            </p>
-          </div>
-        </div>
+        <section className="bg-card rounded-xl border border-border p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+            <ImageIcon className="h-5 w-5 text-primary" />
+            Acerca del Evento
+          </h2>
+          <p className="text-muted-foreground leading-relaxed whitespace-pre-line text-base">
+            {event.description}
+          </p>
+        </section>
       )}
 
       {/* Stats Cards */}
