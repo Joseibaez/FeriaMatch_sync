@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building, User, Pencil, Trash2, Briefcase, MapPin } from "lucide-react";
 import { getStringColor, getContrastTextColor } from "@/lib/colorUtils";
+import { EditStandDialog } from "@/components/slots/EditStandDialog";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface SlotCardProps {
@@ -20,6 +22,13 @@ export const SlotCard = ({ slot, isAdmin, onEdit, onDelete, isDeleting }: SlotCa
   const slotStart = new Date(slot.start_time);
   const slotEnd = new Date(slot.end_time);
   const isFree = !slot.candidate_id;
+  
+  const [editStandOpen, setEditStandOpen] = useState(false);
+  const [selectedAllocation, setSelectedAllocation] = useState<{
+    id: string;
+    company_name: string;
+    stand_number: string | null;
+  } | null>(null);
 
   // Fetch allocations for this slot
   const { data: allocations, isLoading: allocationsLoading } = useQuery({
@@ -120,7 +129,25 @@ export const SlotCard = ({ slot, isAdmin, onEdit, onDelete, isDeleting }: SlotCa
                         {allocation.company_name}
                       </span>
                     </div>
-                    {allocation.stand_number && (
+                    {isAdmin ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-xs font-medium bg-background/80 border-border/50 hover:bg-background"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedAllocation({
+                            id: allocation.id,
+                            company_name: allocation.company_name,
+                            stand_number: allocation.stand_number,
+                          });
+                          setEditStandOpen(true);
+                        }}
+                      >
+                        <MapPin className="mr-1 h-3 w-3" />
+                        {allocation.stand_number ? `Stand ${allocation.stand_number}` : "Asignar Stand"}
+                      </Button>
+                    ) : allocation.stand_number ? (
                       <Badge 
                         variant="outline" 
                         className="text-xs font-medium bg-background/80 border-border/50"
@@ -128,7 +155,7 @@ export const SlotCard = ({ slot, isAdmin, onEdit, onDelete, isDeleting }: SlotCa
                         <MapPin className="mr-1 h-3 w-3" />
                         Stand {allocation.stand_number}
                       </Badge>
-                    )}
+                    ) : null}
                   </div>
 
                   {/* Sector and Interviewer */}
@@ -172,6 +199,13 @@ export const SlotCard = ({ slot, isAdmin, onEdit, onDelete, isDeleting }: SlotCa
           </span>
         </div>
       )}
+
+      {/* Edit Stand Dialog */}
+      <EditStandDialog
+        allocation={selectedAllocation}
+        open={editStandOpen}
+        onOpenChange={setEditStandOpen}
+      />
     </div>
   );
 };
