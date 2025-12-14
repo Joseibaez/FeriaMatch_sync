@@ -75,7 +75,7 @@ const navigationItems: NavItem[] = [
     title: "Explorar Eventos", 
     url: "/app/explorar", 
     icon: Search,
-    roles: ['candidate']
+    roles: ['admin', 'recruiter', 'candidate']
   },
   { 
     title: "Mi Perfil", 
