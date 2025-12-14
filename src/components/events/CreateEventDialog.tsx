@@ -24,6 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -41,6 +42,8 @@ import {
 
 const eventSchema = z.object({
   title: z.string().min(1, "El título es requerido").max(100, "Máximo 100 caracteres"),
+  description: z.string().max(1000, "Máximo 1000 caracteres").optional(),
+  image_url: z.string().url("URL inválida").optional().or(z.literal("")),
   event_date: z.date({ required_error: "La fecha es requerida" }),
   start_time: z.string().min(1, "La hora de inicio es requerida"),
   end_time: z.string().min(1, "La hora de fin es requerida"),
@@ -72,6 +75,8 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
     resolver: zodResolver(eventSchema),
     defaultValues: {
       title: "",
+      description: "",
+      image_url: "",
       start_time: "09:00",
       end_time: "18:00",
       slot_duration_minutes: 30,
@@ -83,6 +88,8 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
     try {
       const { error } = await supabase.from("events").insert({
         title: data.title,
+        description: data.description || null,
+        image_url: data.image_url || null,
         event_date: format(data.event_date, "yyyy-MM-dd"),
         start_time: data.start_time,
         end_time: data.end_time,
@@ -112,7 +119,7 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Crear Nuevo Evento</DialogTitle>
           <DialogDescription>
@@ -131,6 +138,44 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
                   <FormLabel>Título del evento</FormLabel>
                   <FormControl>
                     <Input placeholder="Ej: Feria TechJobs 2025" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Description */}
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descripción (opcional)</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Describe el evento, su propósito, lo que los asistentes pueden esperar..."
+                      className="min-h-[100px] resize-none"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Image URL */}
+            <FormField
+              control={form.control}
+              name="image_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>URL del Banner (opcional)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="url"
+                      placeholder="https://ejemplo.com/imagen.jpg" 
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

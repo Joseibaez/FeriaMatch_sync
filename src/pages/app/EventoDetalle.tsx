@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Calendar, Clock, Settings, Layers, Users, RefreshCw, Download } from "lucide-react";
+import { Calendar, Clock, Settings, Layers, Users, RefreshCw, Download, ImageIcon } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateCSV, downloadCSV, CSVColumn } from "@/lib/csvExport";
 
@@ -306,20 +306,61 @@ const EventoDetalle = () => {
     <div className="space-y-6">
       <GoBackButton />
 
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+      {/* Hero Section */}
+      <div 
+        className="relative rounded-xl overflow-hidden"
+        style={{
+          minHeight: event.image_url ? '280px' : 'auto',
+        }}
+      >
+        {event.image_url ? (
+          <>
+            {/* Background Image */}
+            <div 
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${event.image_url})` }}
+            />
+            {/* Dark Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
+            {/* Content */}
+            <div className="relative z-10 p-6 sm:p-8 flex flex-col justify-end h-full min-h-[280px]">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="secondary" className="bg-white/20 text-white border-0 backdrop-blur-sm">
+                  <Settings className="mr-1 h-3 w-3" />
+                  Configuración
+                </Badge>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-2">
+                {event.title}
+              </h1>
+              <p className="text-white/80 capitalize mb-3">{formattedDate}</p>
+              {event.description && (
+                <p className="text-white/90 text-sm sm:text-base max-w-3xl leading-relaxed">
+                  {event.description}
+                </p>
+              )}
+            </div>
+          </>
+        ) : (
+          /* No Image - Simple Header */
+          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-xl p-6 sm:p-8 border border-border">
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant="outline" className="bg-primary/5 text-primary">
+                <Settings className="mr-1 h-3 w-3" />
+                Configuración
+              </Badge>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-2">
               {event.title}
             </h1>
-            <Badge variant="outline" className="bg-primary/5 text-primary">
-              <Settings className="mr-1 h-3 w-3" />
-              Configuración
-            </Badge>
+            <p className="text-muted-foreground capitalize mb-3">{formattedDate}</p>
+            {event.description && (
+              <p className="text-muted-foreground text-sm sm:text-base max-w-3xl leading-relaxed">
+                {event.description}
+              </p>
+            )}
           </div>
-          <p className="text-muted-foreground capitalize">{formattedDate}</p>
-        </div>
+        )}
       </div>
 
       {/* Event details and metrics */}
