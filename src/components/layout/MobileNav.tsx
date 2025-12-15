@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
+import { useAuth, AppRole } from "@/contexts/AuthContext";
 import { 
   Menu, 
-  X, 
   LayoutDashboard, 
-  CalendarDays, 
   Calendar, 
   User,
   Settings,
-  Building2 
+  Building2,
+  Search,
+  Users,
+  Home,
+  LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,22 +23,37 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
-// Navigation items
-const mainNavItems = [
-  { title: "Dashboard", url: "/app", icon: LayoutDashboard },
-  { title: "Mi Agenda", url: "/app/agenda", icon: CalendarDays },
-  { title: "Mi Perfil", url: "/app/perfil", icon: User },
+interface NavItem {
+  title: string;
+  url: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: string;
+  roles?: AppRole[];
+}
+
+// Navigation items with role restrictions
+const navigationItems: NavItem[] = [
+  { title: "Dashboard", url: "/app", icon: Home, roles: ['admin', 'recruiter', 'candidate'] },
+  { title: "Panel Admin", url: "/app/admin", icon: LayoutDashboard, roles: ['admin'] },
+  { title: "Panel Empresa", url: "/app/empresa", icon: Building2, roles: ['recruiter'] },
+  { title: "Panel Candidato", url: "/app/candidato", icon: User, roles: ['candidate'] },
+  { title: "Explorar Eventos", url: "/app/explorar", icon: Search, roles: ['admin', 'recruiter', 'candidate'] },
+  { title: "Mi Perfil", url: "/app/perfil", icon: User, roles: ['admin', 'recruiter', 'candidate'] },
 ];
 
-const adminNavItems = [
-  { title: "Eventos", url: "/app/eventos", icon: Calendar, badge: "Admin Only" },
+// Admin-only navigation items
+const adminItems: NavItem[] = [
+  { title: "Gestión de Eventos", url: "/app/eventos", icon: Calendar, badge: "Admin", roles: ['admin'] },
+  { title: "Usuarios", url: "/app/usuarios", icon: Users, badge: "Admin", roles: ['admin'] },
 ];
 
-const settingsNavItems = [
-  { title: "Configuración", url: "/app/configuracion", icon: Settings },
+// Settings navigation
+const settingsItems: NavItem[] = [
+  { title: "Configuración", url: "/app/configuracion", icon: Settings, roles: ['admin', 'recruiter', 'candidate'] },
 ];
 
 // Mobile navigation drawer component
@@ -43,8 +61,24 @@ export const MobileNav = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const isMobile = useIsMobile();
+  const { userRole, signOut, user } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Filter items based on user role
+  const filterByRole = (items: NavItem[]) => {
+    if (!userRole) return [];
+    return items.filter(item => !item.roles || item.roles.includes(userRole));
+  };
+
+  const visibleNavItems = filterByRole(navigationItems);
+  const visibleAdminItems = filterByRole(adminItems);
+  const visibleSettingsItems = filterByRole(settingsItems);
+
+  const handleLogout = async () => {
+    setOpen(false);
+    await signOut();
+  };
 
   // Only render on mobile
   if (!isMobile) return null;
@@ -74,7 +108,7 @@ export const MobileNav = () => {
             </div>
             <div className="flex flex-col">
               <SheetTitle className="text-left text-base">FeriaMatch</SheetTitle>
-              <span className="text-xs text-muted-foreground">Panel de control</span>
+              <span className="text-xs text-muted-foreground capitalize">{userRole || 'User'}</span>
             </div>
           </Link>
         </SheetHeader>
@@ -84,7 +118,7 @@ export const MobileNav = () => {
           <span className="mb-2 px-2 text-xs font-medium uppercase text-muted-foreground tracking-wider">
             Navegación
           </span>
-          {mainNavItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavLink
               key={item.url}
               to={item.url}
@@ -102,39 +136,42 @@ export const MobileNav = () => {
             </NavLink>
           ))}
 
-          <Separator className="my-4" />
-
-          {/* Admin section */}
-          <span className="mb-2 px-2 text-xs font-medium uppercase text-muted-foreground tracking-wider">
-            Administración
-          </span>
-          {adminNavItems.map((item) => (
-            <NavLink
-              key={item.url}
-              to={item.url}
-              onClick={() => setOpen(false)}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors touch-target",
-                "hover:bg-muted hover:text-foreground",
-                isActive(item.url) 
-                  ? "bg-primary/10 text-primary" 
-                  : "text-muted-foreground"
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              <span className="flex-1">{item.title}</span>
-              {item.badge && (
-                <span className="rounded bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">
-                  {item.badge}
-                </span>
-              )}
-            </NavLink>
-          ))}
+          {/* Admin section - only show if user has admin items */}
+          {visibleAdminItems.length > 0 && (
+            <>
+              <Separator className="my-4" />
+              <span className="mb-2 px-2 text-xs font-medium uppercase text-muted-foreground tracking-wider">
+                Administración
+              </span>
+              {visibleAdminItems.map((item) => (
+                <NavLink
+                  key={item.url}
+                  to={item.url}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors touch-target",
+                    "hover:bg-muted hover:text-foreground",
+                    isActive(item.url) 
+                      ? "bg-primary/10 text-primary" 
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span className="flex-1">{item.title}</span>
+                  {item.badge && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-warning/10 text-warning border-warning/20">
+                      {item.badge}
+                    </Badge>
+                  )}
+                </NavLink>
+              ))}
+            </>
+          )}
 
           <Separator className="my-4" />
 
           {/* Settings */}
-          {settingsNavItems.map((item) => (
+          {visibleSettingsItems.map((item) => (
             <NavLink
               key={item.url}
               to={item.url}
@@ -151,6 +188,26 @@ export const MobileNav = () => {
               {item.title}
             </NavLink>
           ))}
+
+          {/* User info and logout */}
+          <Separator className="my-4" />
+          
+          {user && (
+            <div className="px-3 py-2">
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            </div>
+          )}
+
+          <button
+            onClick={handleLogout}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors touch-target w-full",
+              "hover:bg-destructive/10 text-destructive"
+            )}
+          >
+            <LogOut className="h-5 w-5" />
+            Cerrar sesión
+          </button>
         </nav>
       </SheetContent>
     </Sheet>
