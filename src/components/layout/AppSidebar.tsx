@@ -60,6 +60,12 @@ const navigationItems: NavItem[] = [
     roles: ['recruiter']
   },
   { 
+    title: "Panel Candidato", 
+    url: "/app/candidato", 
+    icon: User,
+    roles: ['candidate']
+  },
+  { 
     title: "Explorar Eventos", 
     url: "/app/explorar", 
     icon: Search,

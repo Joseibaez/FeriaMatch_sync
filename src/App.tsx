@@ -29,6 +29,7 @@ import Configuracion from "./pages/app/Configuracion";
 import CompanyDashboard from "./pages/app/CompanyDashboard";
 import AdminDashboard from "./pages/app/AdminDashboard";
 import AdminUsers from "./pages/app/AdminUsers";
+import CandidateDashboard from "./pages/app/CandidateDashboard";
 
 const queryClient = new QueryClient();
 
@@ -94,6 +95,13 @@ const App = () => (
               <Route path="empresa" element={
                 <ProtectedRoute requiredRole="recruiter">
                   <CompanyDashboard />
+                </ProtectedRoute>
+              } />
+              
+              {/* Candidate routes */}
+              <Route path="candidato" element={
+                <ProtectedRoute requiredRole="candidate">
+                  <CandidateDashboard />
                 </ProtectedRoute>
               } />
               
