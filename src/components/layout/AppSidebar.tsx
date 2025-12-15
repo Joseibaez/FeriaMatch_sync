@@ -42,22 +42,10 @@ interface NavItem {
 // Navigation items with role restrictions
 const navigationItems: NavItem[] = [
   { 
-    title: "Inicio", 
-    url: "/app/admin", 
-    icon: Home,
-    roles: ['admin']
-  },
-  { 
-    title: "Inicio", 
-    url: "/app/empresa", 
-    icon: Home,
-    roles: ['recruiter']
-  },
-  { 
     title: "Dashboard", 
     url: "/app", 
-    icon: LayoutDashboard,
-    roles: ['candidate']
+    icon: Home,
+    roles: ['admin', 'recruiter', 'candidate']
   },
   { 
     title: "Panel Admin", 
