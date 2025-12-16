@@ -13,6 +13,7 @@ import { getStringColor, getContrastTextColor } from "@/lib/colorUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { generateSignedUrl } from "@/lib/storageUtils";
 const MAX_CAPACITY = 2;
 
 // Type for allocation with booking count
@@ -255,13 +256,15 @@ const EventoAgenda = () => {
         } = await supabase.from("profiles").select("email").eq("company_name", data.companyName).limit(1);
         if (profile && event && data && companyProfiles && companyProfiles.length > 0) {
           const slotDate = new Date(data.slotStart);
+          // Generate a short-lived signed URL for the CV (24 hours for email)
+          const cvUrl = await generateSignedUrl(profile.cv_url, "secure-documents", 86400);
           await supabase.functions.invoke("send-booking-email", {
             body: {
               type: "request_to_company",
               companyEmail: companyProfiles[0].email,
               candidateName: profile.full_name || "Candidato",
               candidateEmail: profile.email,
-              candidateCvUrl: profile.cv_url,
+              candidateCvUrl: cvUrl,
               date: format(new Date(event.event_date), "EEEE d 'de' MMMM, yyyy", {
                 locale: es
               }),

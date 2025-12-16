@@ -74,7 +74,7 @@ export const FileUploader = ({
 
       if (uploadError) throw uploadError;
 
-      // Get public URL for public bucket, or signed URL for private
+      // Get public URL for public bucket, or store file path for private
       let url: string;
       if (bucket === "public-files") {
         const { data: urlData } = supabase.storage
@@ -82,11 +82,9 @@ export const FileUploader = ({
           .getPublicUrl(filePath);
         url = urlData.publicUrl;
       } else {
-        const { data: urlData, error: urlError } = await supabase.storage
-          .from(bucket)
-          .createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year expiry
-        if (urlError) throw urlError;
-        url = urlData.signedUrl;
+        // For secure documents, store the file path instead of a signed URL
+        // Signed URLs will be generated on-demand with short expiry
+        url = filePath;
       }
 
       onUploadComplete(url);
