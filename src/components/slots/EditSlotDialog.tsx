@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Clock, Building, Plus, Trash2, User, MapPin } from "lucide-react";
+import { CompanySelector } from "./CompanySelector";
 import type { Tables } from "@/integrations/supabase/types";
 
 // Validation schema for adding a company allocation
@@ -214,7 +215,11 @@ export function EditSlotDialog({ slot, eventId, open, onOpenChange }: EditSlotDi
                     <FormItem>
                       <FormLabel>Nombre de la Empresa *</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ej: TechCorp S.A." {...field} />
+                        <CompanySelector
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Seleccionar o escribir empresa..."
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
