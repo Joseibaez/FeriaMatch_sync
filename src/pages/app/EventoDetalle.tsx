@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Calendar, Clock, Settings, Layers, Users, RefreshCw, Download, ImageIcon } from "lucide-react";
+import { Calendar, Clock, Settings, Layers, Users, RefreshCw, Download, ImageIcon, Trash2, AlertTriangle } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateCSV, downloadCSV, CSVColumn } from "@/lib/csvExport";
 
@@ -36,6 +36,7 @@ const EventoDetalle = () => {
   const { hasRole } = useAuth();
   const queryClient = useQueryClient();
   const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [editingSlot, setEditingSlot] = useState<Tables<"slots"> | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
@@ -223,6 +224,33 @@ const EventoDetalle = () => {
     onError: (error) => {
       toast({
         title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete ALL slots mutation (bulk delete)
+  const deleteAllSlotsMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("delete_event_slots", {
+        event_uuid: id,
+      });
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: (deletedCount) => {
+      queryClient.invalidateQueries({ queryKey: ["slots", id] });
+      queryClient.invalidateQueries({ queryKey: ["event-allocations-export", id] });
+      setShowDeleteAllDialog(false);
+      toast({
+        title: "Agenda eliminada",
+        description: `Se eliminaron ${deletedCount} slots y todas sus reservas asociadas.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al eliminar",
         description: error.message,
         variant: "destructive",
       });
@@ -428,12 +456,27 @@ const EventoDetalle = () => {
               Genera automáticamente los slots de tiempo basándote en la configuración del evento.
               Cada slot tendrá una duración de {event.slot_duration_minutes} minutos.
             </p>
-            <Button 
-              onClick={handleGenerateSlots}
-              disabled={generateSlotsMutation.isPending}
-            >
-              {generateSlotsMutation.isPending ? "Generando..." : "Generar Estructura de Agenda"}
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              <Button 
+                onClick={handleGenerateSlots}
+                disabled={generateSlotsMutation.isPending}
+              >
+                {generateSlotsMutation.isPending ? "Generando..." : "Generar Estructura de Agenda"}
+              </Button>
+              
+              {/* Bulk Delete Button - Only show if slots exist */}
+              {slots && slots.length > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowDeleteAllDialog(true)}
+                  disabled={deleteAllSlotsMutation.isPending}
+                  className="gap-2"
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  {deleteAllSlotsMutation.isPending ? "Eliminando..." : "Borrar toda la agenda actual"}
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -555,6 +598,39 @@ const EventoDetalle = () => {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmGenerate}>
               Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete All Slots Confirmation Dialog */}
+      <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              ¿Eliminar toda la agenda?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Esta acción eliminará <strong>{slots?.length || 0} slots</strong> y todas sus 
+                reservas y asignaciones de empresas asociadas.
+              </p>
+              <p className="text-destructive font-medium">
+                Esta acción no se puede deshacer.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteAllSlotsMutation.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteAllSlotsMutation.mutate()}
+              disabled={deleteAllSlotsMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteAllSlotsMutation.isPending ? "Eliminando..." : "Sí, eliminar todo"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
