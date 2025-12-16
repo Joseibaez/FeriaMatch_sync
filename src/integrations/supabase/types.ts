@@ -294,6 +294,7 @@ export type Database = {
       }
     }
     Functions: {
+      delete_event_slots: { Args: { event_uuid: string }; Returns: number }
       get_user_company_name: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
