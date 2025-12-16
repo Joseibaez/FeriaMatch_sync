@@ -14,6 +14,7 @@ import { AvailableEventsSection } from '@/components/company/AvailableEventsSect
 import { generateCSV, downloadCSV, formatDateForFilename, CSVColumn } from '@/lib/csvExport';
 import { toast } from 'sonner';
 import { EditStandDialog } from '@/components/slots/EditStandDialog';
+import { generateSignedUrl } from '@/lib/storageUtils';
 
 interface SlotAllocationWithBooking {
   id: string;
@@ -604,16 +605,17 @@ export default function CompanyDashboard() {
                                 variant="outline"
                                 size="sm"
                                 className="flex-1 h-7 text-xs"
-                                asChild
+                                onClick={async () => {
+                                  const url = await generateSignedUrl(allocation.booking!.candidate.cv_url);
+                                  if (url) {
+                                    window.open(url, '_blank');
+                                  } else {
+                                    toast.error('No se pudo acceder al CV');
+                                  }
+                                }}
                               >
-                                <a
-                                  href={allocation.booking.candidate.cv_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <FileText className="h-3 w-3 mr-1" />
-                                  Ver CV
-                                </a>
+                                <FileText className="h-3 w-3 mr-1" />
+                                Ver CV
                               </Button>
                             )}
                             {allocation.booking.candidate.linkedin_url && (
