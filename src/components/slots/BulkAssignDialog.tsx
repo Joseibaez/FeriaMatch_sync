@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Building2, Clock, Users, MapPin } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { CompanySelector } from "./CompanySelector";
 
 interface BulkAssignDialogProps {
   open: boolean;
@@ -174,12 +175,10 @@ export const BulkAssignDialog = ({
                 <Label htmlFor="companyName">
                   Nombre de la Empresa <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  id="companyName"
+                <CompanySelector
                   value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="Ej: Tech Solutions S.A."
-                  required
+                  onChange={setCompanyName}
+                  placeholder="Seleccionar o escribir empresa..."
                 />
               </div>
 
