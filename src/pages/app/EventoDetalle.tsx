@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { GoBackButton } from "@/components/navigation/GoBackButton";
 import { EditSlotDialog } from "@/components/slots/EditSlotDialog";
 import { SlotCard } from "@/components/slots/SlotCard";
+import { CreateEventDialog } from "@/components/events/CreateEventDialog";
 import { BulkAssignDialog } from "@/components/slots/BulkAssignDialog";
 import {
   AlertDialog,
@@ -26,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Calendar, Clock, Settings, Layers, Users, RefreshCw, Download, ImageIcon, Trash2, AlertTriangle } from "lucide-react";
+import { Calendar, Clock, Settings, Layers, Users, RefreshCw, Download, ImageIcon, Trash2, AlertTriangle, Pencil } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateCSV, downloadCSV, CSVColumn } from "@/lib/csvExport";
 
@@ -40,6 +41,7 @@ const EventoDetalle = () => {
   const [editingSlot, setEditingSlot] = useState<Tables<"slots"> | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
+  const [editEventOpen, setEditEventOpen] = useState(false);
 
   const isAdmin = hasRole("admin");
 
@@ -361,9 +363,21 @@ const EventoDetalle = () => {
                   {timeRange}
                 </Badge>
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white drop-shadow-lg">
-                {event.title}
-              </h1>
+              <div className="flex items-center gap-4">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white drop-shadow-lg">
+                  {event.title}
+                </h1>
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setEditEventOpen(true)}
+                    className="bg-white/20 border-white/30 text-white hover:bg-white/30 hover:text-white backdrop-blur-sm"
+                  >
+                    <Pencil className="h-5 w-5" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -635,6 +649,16 @@ const EventoDetalle = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Event Dialog */}
+      <CreateEventDialog
+        open={editEventOpen}
+        onOpenChange={setEditEventOpen}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["event", id] });
+        }}
+        initialData={event}
+      />
     </div>
   );
 };

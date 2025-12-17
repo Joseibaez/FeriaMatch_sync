@@ -1,8 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { CalendarIcon, Loader2, Upload, X, ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -60,19 +60,33 @@ const eventSchema = z.object({
 
 type EventFormData = z.infer<typeof eventSchema>;
 
+interface EventData {
+  id: string;
+  title: string;
+  description?: string | null;
+  event_date: string;
+  start_time: string;
+  end_time: string;
+  slot_duration_minutes: number;
+  image_url?: string | null;
+}
+
 interface CreateEventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  initialData?: EventData | null;
 }
 
-export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEventDialogProps) {
+export function CreateEventDialog({ open, onOpenChange, onSuccess, initialData }: CreateEventDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const isEditing = !!initialData;
 
   const form = useForm<EventFormData>({
     resolver: zodResolver(eventSchema),
@@ -84,6 +98,33 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
       slot_duration_minutes: 30,
     },
   });
+
+  // Reset form when initialData changes or dialog opens
+  useEffect(() => {
+    if (open && initialData) {
+      form.reset({
+        title: initialData.title,
+        description: initialData.description || "",
+        event_date: parseISO(initialData.event_date),
+        start_time: initialData.start_time.slice(0, 5),
+        end_time: initialData.end_time.slice(0, 5),
+        slot_duration_minutes: initialData.slot_duration_minutes,
+      });
+      if (initialData.image_url) {
+        setBannerPreview(initialData.image_url);
+      }
+    } else if (open && !initialData) {
+      form.reset({
+        title: "",
+        description: "",
+        start_time: "09:00",
+        end_time: "18:00",
+        slot_duration_minutes: 30,
+      });
+      setBannerFile(null);
+      setBannerPreview(null);
+    }
+  }, [open, initialData, form]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -140,7 +181,7 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
   const onSubmit = async (data: EventFormData) => {
     setIsSubmitting(true);
     try {
-      let imageUrl: string | null = null;
+      let imageUrl: string | null = isEditing ? initialData?.image_url || null : null;
 
       if (bannerFile) {
         setIsUploading(true);
@@ -148,7 +189,7 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
         setIsUploading(false);
       }
 
-      const { error } = await supabase.from("events").insert({
+      const eventData = {
         title: data.title,
         description: data.description || null,
         image_url: imageUrl,
@@ -156,14 +197,28 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
         start_time: data.start_time,
         end_time: data.end_time,
         slot_duration_minutes: data.slot_duration_minutes,
-      });
+      };
 
-      if (error) throw error;
+      if (isEditing && initialData) {
+        const { error } = await supabase
+          .from("events")
+          .update(eventData)
+          .eq("id", initialData.id);
+        if (error) throw error;
 
-      toast({
-        title: "Evento creado",
-        description: "El evento se ha creado exitosamente.",
-      });
+        toast({
+          title: "Evento actualizado",
+          description: "Los cambios se han guardado exitosamente.",
+        });
+      } else {
+        const { error } = await supabase.from("events").insert(eventData);
+        if (error) throw error;
+
+        toast({
+          title: "Evento creado",
+          description: "El evento se ha creado exitosamente.",
+        });
+      }
 
       form.reset();
       setBannerFile(null);
@@ -173,7 +228,7 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "No se pudo crear el evento.",
+        description: error.message || `No se pudo ${isEditing ? "actualizar" : "crear"} el evento.`,
         variant: "destructive",
       });
     } finally {
@@ -186,9 +241,11 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Crear Nuevo Evento</DialogTitle>
+          <DialogTitle>{isEditing ? "Editar Evento" : "Crear Nuevo Evento"}</DialogTitle>
           <DialogDescription>
-            Define los detalles de la nueva feria de empleo.
+            {isEditing 
+              ? "Modifica los parámetros del evento. Puedes regenerar los slots después de guardar."
+              : "Define los detalles de la nueva feria de empleo."}
           </DialogDescription>
         </DialogHeader>
 
@@ -387,7 +444,7 @@ export function CreateEventDialog({ open, onOpenChange, onSuccess }: CreateEvent
               </Button>
               <Button type="submit" disabled={isSubmitting || isUploading}>
                 {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isUploading ? "Subiendo imagen..." : "Crear Evento"}
+                {isUploading ? "Subiendo imagen..." : isEditing ? "Guardar Cambios" : "Crear Evento"}
               </Button>
             </div>
           </form>
