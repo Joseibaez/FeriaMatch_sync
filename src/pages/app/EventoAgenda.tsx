@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Building, User, Briefcase, Clock, CalendarDays, CheckCircle, Loader2, Users, AlertCircle } from "lucide-react";
+import { Building, User, Briefcase, Clock, CalendarDays, CheckCircle, Loader2, Users, AlertCircle, TimerOff } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GoBackButton } from "@/components/navigation/GoBackButton";
 import { getStringColor, getContrastTextColor } from "@/lib/colorUtils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -383,6 +384,11 @@ const PublicSlotCard = ({
   const slotStart = new Date(slot.start_time);
   const slotEnd = new Date(slot.end_time);
   const hasAllocations = slot.allocations.length > 0;
+  
+  // Check if slot starts in less than 10 minutes (cutoff rule)
+  const now = new Date();
+  const minutesUntilStart = (slotStart.getTime() - now.getTime()) / (1000 * 60);
+  const isCutoffReached = minutesUntilStart < 10;
   return <div className={`rounded-lg border p-3 transition-colors ${hasAllocations ? "border-primary/30 bg-primary/5" : "border-border bg-card hover:bg-accent/50"}`}>
       {/* Header: Time range */}
       <div className="flex items-center justify-between mb-2">
@@ -461,7 +467,19 @@ const PublicSlotCard = ({
                             Reservado
                           </Badge> : isFull ? <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200">
                           Completo
-                        </Badge> : <Button size="sm" variant="secondary" onClick={() => onBook(allocation.id)} disabled={isCurrentlyBooking} className="h-7 text-xs px-3 gap-1 bg-primary">
+                        </Badge> : isCutoffReached ? <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="sm" variant="secondary" disabled className="h-7 text-xs px-3 gap-1 bg-muted text-muted-foreground grayscale cursor-not-allowed">
+                                <TimerOff className="h-3 w-3" />
+                                Cerrado
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Las inscripciones cierran 10 min antes</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider> : <Button size="sm" variant="secondary" onClick={() => onBook(allocation.id)} disabled={isCurrentlyBooking} className="h-7 text-xs px-3 gap-1 bg-primary">
 {isCurrentlyBooking ? <Loader2 className="h-3 w-3 animate-spin" /> : "Solicitar"}
                         </Button>}
                     </div>}
