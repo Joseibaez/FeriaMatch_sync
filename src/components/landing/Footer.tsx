@@ -25,7 +25,7 @@ const Footer = () => {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="#" className="hover:text-foreground">Características</a></li>
               
-              <li><a href="#" className="hover:text-foreground">Documentación</a></li>
+              
             </ul>
           </div>
 
@@ -33,7 +33,7 @@ const Footer = () => {
           <div>
             <h4 className="mb-4 text-sm font-semibold text-foreground">Contacto</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>empleo@camarazaragoza.com<a href="#" className="hover:text-foreground">Soporte</a></li>
+              
               
               
             </ul>
