@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { generateSignedUrl } from "@/lib/storageUtils";
-const MAX_CAPACITY = 2;
+const MAX_CAPACITY = 1;
 
 // Type for allocation with booking count
 type AllocationWithBookings = Tables<"slot_allocations"> & {
