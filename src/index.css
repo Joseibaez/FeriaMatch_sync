@@ -34,9 +34,9 @@
     --muted: 215 20% 65%;
     --muted-foreground: 222 47% 11%;
 
-    /* Action Green - Accent */
-    --accent: 210 40% 98%;
-    --accent-foreground: 215 19% 34%;
+    /* Action Teal - Accent */
+    --accent: 172 66% 50%;
+    --accent-foreground: 0 0% 100%;
 
     /* Destructive - Warm Red */
     --destructive: 0 72% 50%;
