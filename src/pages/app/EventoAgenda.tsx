@@ -153,38 +153,21 @@ const EventoAgenda = () => {
       });
       if (allocationsError) throw allocationsError;
 
-      // Fetch all bookings for these allocations to get counts
-      const allocationIds = allocationsData?.map(a => a.id) || [];
+      // Fetch booking counts via RPC (bypasses RLS for global counts)
       let bookingCounts: Record<string, number> = {};
       let pendingCounts: Record<string, number> = {};
-      if (allocationIds.length > 0) {
-        const {
-          data: bookingsData,
-          error: bookingsError
-        } = await supabase
-          .from("bookings")
-          .select("slot_allocation_id, status")
-          .in("slot_allocation_id", allocationIds);
-
-        if (bookingsError) throw bookingsError;
-
-        // Filter to only count confirmed and pending bookings (not rejected)
-        const activeBookings = (bookingsData || []).filter(b => 
-          b.status === 'confirmed' || b.status === 'pending'
-        );
-
-        // Count bookings per allocation (total active and pending separately)
-        bookingCounts = activeBookings.reduce((acc, booking) => {
-          acc[booking.slot_allocation_id] = (acc[booking.slot_allocation_id] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
-        
-        pendingCounts = activeBookings.reduce((acc, booking) => {
-          if (booking.status === 'pending') {
-            acc[booking.slot_allocation_id] = (acc[booking.slot_allocation_id] || 0) + 1;
-          }
-          return acc;
-        }, {} as Record<string, number>);
+      
+      const { data: countsData, error: countsError } = await supabase
+        .rpc('get_event_allocation_booking_counts', { p_event_id: eventId! });
+      
+      if (countsError) {
+        console.error('Error fetching booking counts:', countsError);
+      } else if (countsData) {
+        // Build lookup maps from RPC results
+        countsData.forEach((row: { slot_allocation_id: string; active_count: number; pending_count: number }) => {
+          bookingCounts[row.slot_allocation_id] = row.active_count;
+          pendingCounts[row.slot_allocation_id] = row.pending_count;
+        });
       }
 
       // Combine slots with their allocations and booking counts
