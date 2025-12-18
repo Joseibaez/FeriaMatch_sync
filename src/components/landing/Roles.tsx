@@ -78,7 +78,7 @@ const Roles = () => {
               <CardHeader className="pb-4">
                 <div className="flex items-start justify-between">
                   <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${role.iconBg}`}>
-                    <role.icon className="h-6 w-6 text-primary-foreground" />
+                    <role.icon className="h-6 w-6 text-accent-foreground" />
                   </div>
                   <Badge variant={role.badgeVariant}>{role.badge}</Badge>
                 </div>
