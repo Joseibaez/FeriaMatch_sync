@@ -132,6 +132,10 @@ const EventoAgenda = () => {
   } = useQuery({
     queryKey: ["event-slots-agenda", eventId],
     enabled: !!eventId,
+    // Avoid UI flicker: keep previous data while refetching (e.g. realtime invalidations)
+    placeholderData: prev => prev,
+    // Realtime already keeps it fresh; avoid extra refetches that can cause brief inconsistent states
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       // Fetch all slots for the event
       const {
@@ -156,15 +160,23 @@ const EventoAgenda = () => {
       // Fetch booking counts via RPC (bypasses RLS for global counts)
       let bookingCounts: Record<string, number> = {};
       let pendingCounts: Record<string, number> = {};
-      
-      const { data: countsData, error: countsError } = await supabase
-        .rpc('get_event_allocation_booking_counts', { p_event_id: eventId! });
-      
-      if (countsError) {
-        console.error('Error fetching booking counts:', countsError);
-      } else if (countsData) {
-        // Build lookup maps from RPC results
-        countsData.forEach((row: { slot_allocation_id: string; active_count: number; pending_count: number }) => {
+
+      const {
+        data: countsData,
+        error: countsError
+      } = await supabase.rpc('get_event_allocation_booking_counts', {
+        p_event_id: eventId!
+      });
+
+      // IMPORTANT: If counts fail, don't overwrite the UI with zeros (looks like "Libre").
+      if (countsError) throw countsError;
+
+      if (countsData) {
+        countsData.forEach((row: {
+          slot_allocation_id: string;
+          active_count: number;
+          pending_count: number;
+        }) => {
           bookingCounts[row.slot_allocation_id] = row.active_count;
           pendingCounts[row.slot_allocation_id] = row.pending_count;
         });
