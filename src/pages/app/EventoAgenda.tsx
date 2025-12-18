@@ -1,5 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -202,7 +203,30 @@ const EventoAgenda = () => {
     }
   });
 
-  // Helper function to check if two time ranges overlap
+  // Real-time subscription for bookings changes - updates UI instantly
+  useEffect(() => {
+    const channel = supabase
+      .channel('bookings-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings'
+        },
+        () => {
+          // Invalidate queries to refresh data when any booking changes
+          queryClient.invalidateQueries({ queryKey: ["event-slots-agenda", eventId] });
+          queryClient.invalidateQueries({ queryKey: ["user-bookings-full", user?.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [eventId, user?.id, queryClient]);
+
   const checkTimeOverlap = (start1: string, end1: string, start2: string, end2: string): boolean => {
     const s1 = new Date(start1).getTime();
     const e1 = new Date(end1).getTime();
