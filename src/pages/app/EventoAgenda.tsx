@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Building, User, Briefcase, Clock, CalendarDays, CheckCircle, Loader2, Users, AlertCircle, TimerOff } from "lucide-react";
+import { Building, User, Briefcase, Clock, CalendarDays, CheckCircle, Loader2, Users, AlertCircle, TimerOff, Hourglass } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GoBackButton } from "@/components/navigation/GoBackButton";
 import { getStringColor, getContrastTextColor } from "@/lib/colorUtils";
@@ -20,6 +20,7 @@ const MAX_CAPACITY = 1;
 // Type for allocation with booking count
 type AllocationWithBookings = Tables<"slot_allocations"> & {
   bookingCount: number;
+  pendingCount: number; // Count of pending bookings specifically
   isBooked: boolean;
   bookingStatus: string | null; // 'pending' | 'confirmed' | 'rejected' | null
 };
@@ -154,6 +155,7 @@ const EventoAgenda = () => {
       // Fetch all bookings for these allocations to get counts (only count confirmed for capacity)
       const allocationIds = allocationsData?.map(a => a.id) || [];
       let bookingCounts: Record<string, number> = {};
+      let pendingCounts: Record<string, number> = {};
       if (allocationIds.length > 0) {
         const {
           data: bookingsData,
@@ -162,9 +164,16 @@ const EventoAgenda = () => {
 
         if (bookingsError) throw bookingsError;
 
-        // Count bookings per allocation
+        // Count bookings per allocation (total and pending separately)
         bookingCounts = (bookingsData || []).reduce((acc, booking) => {
           acc[booking.slot_allocation_id] = (acc[booking.slot_allocation_id] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        
+        pendingCounts = (bookingsData || []).reduce((acc, booking) => {
+          if (booking.status === 'pending') {
+            acc[booking.slot_allocation_id] = (acc[booking.slot_allocation_id] || 0) + 1;
+          }
           return acc;
         }, {} as Record<string, number>);
       }
@@ -175,6 +184,7 @@ const EventoAgenda = () => {
         allocations: (allocationsData?.filter(a => a.slot_id === slot.id) || []).map(allocation => ({
           ...allocation,
           bookingCount: bookingCounts[allocation.id] || 0,
+          pendingCount: pendingCounts[allocation.id] || 0,
           isBooked: false,
           // Will be set later with user bookings
           bookingStatus: null
@@ -410,6 +420,7 @@ const PublicSlotCard = ({
           const textColor = getContrastTextColor();
           const isCurrentlyBooking = isBooking && bookingAllocationId === allocation.id;
           const isFull = allocation.bookingCount >= MAX_CAPACITY;
+          const isInReview = isFull && allocation.pendingCount > 0 && !allocation.isBooked; // Full due to pending from others
           const spotsLeft = MAX_CAPACITY - allocation.bookingCount;
           return <div key={allocation.id} className={`rounded-md p-2 transition-colors ${index < slot.allocations.length - 1 ? "border-b border-border/30" : ""}`} style={{
             backgroundColor: bgColor
@@ -465,7 +476,19 @@ const PublicSlotCard = ({
                           </Badge> : <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200 gap-1">
                             <CheckCircle className="h-3 w-3" />
                             Reservado
-                          </Badge> : isFull ? <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200">
+                          </Badge> : isInReview ? <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="sm" variant="outline" disabled className="h-7 text-xs px-3 gap-1 bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-50 cursor-not-allowed">
+                                <Hourglass className="h-3 w-3" />
+                                En Revisión
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>Este horario tiene una solicitud pendiente. Si la empresa no la acepta, volverá a quedar libre.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider> : isFull ? <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200">
                           Completo
                         </Badge> : isCutoffReached ? <TooltipProvider>
                           <Tooltip>
