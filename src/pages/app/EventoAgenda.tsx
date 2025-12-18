@@ -152,7 +152,7 @@ const EventoAgenda = () => {
       });
       if (allocationsError) throw allocationsError;
 
-      // Fetch all bookings for these allocations to get counts (only count confirmed for capacity)
+      // Fetch all bookings for these allocations to get counts
       const allocationIds = allocationsData?.map(a => a.id) || [];
       let bookingCounts: Record<string, number> = {};
       let pendingCounts: Record<string, number> = {};
@@ -160,17 +160,25 @@ const EventoAgenda = () => {
         const {
           data: bookingsData,
           error: bookingsError
-        } = await supabase.from("bookings").select("slot_allocation_id, status").in("slot_allocation_id", allocationIds).in("status", ["confirmed", "pending"]); // Count both confirmed and pending for capacity
+        } = await supabase
+          .from("bookings")
+          .select("slot_allocation_id, status")
+          .in("slot_allocation_id", allocationIds);
 
         if (bookingsError) throw bookingsError;
 
-        // Count bookings per allocation (total and pending separately)
-        bookingCounts = (bookingsData || []).reduce((acc, booking) => {
+        // Filter to only count confirmed and pending bookings (not rejected)
+        const activeBookings = (bookingsData || []).filter(b => 
+          b.status === 'confirmed' || b.status === 'pending'
+        );
+
+        // Count bookings per allocation (total active and pending separately)
+        bookingCounts = activeBookings.reduce((acc, booking) => {
           acc[booking.slot_allocation_id] = (acc[booking.slot_allocation_id] || 0) + 1;
           return acc;
         }, {} as Record<string, number>);
         
-        pendingCounts = (bookingsData || []).reduce((acc, booking) => {
+        pendingCounts = activeBookings.reduce((acc, booking) => {
           if (booking.status === 'pending') {
             acc[booking.slot_allocation_id] = (acc[booking.slot_allocation_id] || 0) + 1;
           }
