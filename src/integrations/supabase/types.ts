@@ -295,6 +295,14 @@ export type Database = {
     }
     Functions: {
       delete_event_slots: { Args: { event_uuid: string }; Returns: number }
+      get_event_allocation_booking_counts: {
+        Args: { p_event_id: string }
+        Returns: {
+          active_count: number
+          pending_count: number
+          slot_allocation_id: string
+        }[]
+      }
       get_user_company_name: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
