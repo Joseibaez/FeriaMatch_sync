@@ -516,6 +516,7 @@ const Configuracion = () => {
                   <Input
                     id="new-password"
                     type="password"
+                    autoComplete="new-password"
                     placeholder="••••••••"
                     value={passwords.newPassword}
                     onChange={(e) =>
@@ -531,6 +532,7 @@ const Configuracion = () => {
                   <Input
                     id="confirm-password"
                     type="password"
+                    autoComplete="new-password"
                     placeholder="••••••••"
                     value={passwords.confirmPassword}
                     onChange={(e) =>
