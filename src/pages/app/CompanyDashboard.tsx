@@ -138,17 +138,54 @@ export default function CompanyDashboard() {
 
       if (eventsError) throw eventsError;
 
-      // Get bookings for these allocations
+      // Get bookings for these allocations (can be multiple per allocation)
       const allocationIds = slotAllocations.map(a => a.id);
       const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
-        .select('id, status, user_id, slot_allocation_id')
+        .select('id, status, user_id, slot_allocation_id, created_at')
         .in('slot_allocation_id', allocationIds);
 
       if (bookingsError) throw bookingsError;
 
+      // Pick the booking we should display per allocation:
+      // Prefer "pending" (needs action), then confirmed/accepted, otherwise latest.
+      const bookingPriority = (status: string) => {
+        switch (status) {
+          case 'pending':
+            return 0;
+          case 'confirmed':
+          case 'accepted':
+            return 1;
+          case 'rejected':
+            return 2;
+          default:
+            return 3;
+        }
+      };
+
+      type BookingRow = {
+        id: string;
+        status: string;
+        user_id: string;
+        slot_allocation_id: string;
+        created_at: string;
+      };
+
+      const bookingsArr: BookingRow[] = (bookings as BookingRow[]) || [];
+      const bookingsByAllocation = new Map<string, BookingRow>();
+      bookingsArr
+        .sort((a, b) => {
+          const pA = bookingPriority(a.status);
+          const pB = bookingPriority(b.status);
+          if (pA !== pB) return pA - pB;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        })
+        .forEach(b => {
+          if (!bookingsByAllocation.has(b.slot_allocation_id)) bookingsByAllocation.set(b.slot_allocation_id, b);
+        });
+
       // Get candidate profiles for bookings
-      const candidateIds = bookings?.map(b => b.user_id) || [];
+      const candidateIds = Array.from(new Set(bookingsArr.map(b => b.user_id)));
       let candidates: any[] = [];
       if (candidateIds.length > 0) {
         const { data: candidateData, error: candidatesError } = await supabase
@@ -164,7 +201,7 @@ export default function CompanyDashboard() {
       const result: SlotAllocationWithBooking[] = slotAllocations.map(allocation => {
         const slot = slots?.find(s => s.id === allocation.slot_id);
         const event = events?.find(e => e.id === slot?.event_id);
-        const booking = bookings?.find(b => b.slot_allocation_id === allocation.id);
+        const booking = bookingsByAllocation.get(allocation.id);
         const candidate = booking ? candidates.find(c => c.id === booking.user_id) : null;
 
         return {
