@@ -69,3 +69,12 @@ npm install
 npm run dev
 ## What technologies are used for this project?
 
+🔐 Seguridad y Privacidad
+Row Level Security (RLS): Las empresas solo pueden ver sus propios datos.
+
+Visibilidad Pública: Los candidatos pueden ver el catálogo de empresas (escaparate), pero no los datos de contacto internos hasta confirmar la cita.
+
+🤝 Contribución
+Este proyecto es parte de un desarrollo ágil enfocado en MVP. Las Pull Requests son bienvenidas.
+
+Desarrollado con ❤️ por Jose Ibañez
