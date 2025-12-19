@@ -1,73 +1,71 @@
-# Welcome to your Lovable project
+# 🚀 FeriaMatch Sync
 
-## Project info
+**Plataforma de gestión inteligente para ferias de empleo y Speed Recruiting.**
 
-**URL**: https://lovable.dev/projects/cfcbff55-87da-4a92-80bb-1426b97d4f60
+FeriaMatch Sync es una solución SaaS diseñada para optimizar la conexión entre talento y empresas en eventos presenciales y digitales. A diferencia de un calendario tradicional, utiliza una lógica de **"Slots Secuenciales"** para maximizar el número de entrevistas y garantizar el orden operativo.
 
-## How can I edit this code?
+![Project Status](https://img.shields.io/badge/Status-Beta-blue)
+![Tech Stack](https://img.shields.io/badge/Stack-React_|_Supabase_|_Tailwind-success)
 
-There are several ways of editing your application.
+## 💡 Propuesta de Valor
 
-**Use Lovable**
+El sistema resuelve el caos habitual de las ferias de empleo mediante un modelo de agenda centralizada:
+- **Para el Admin:** Control total ("White Glove") sobre qué empresas ocupan qué horarios.
+- **Para la Empresa:** Recepción secuencial de candidatos sin *overbooking*.
+- **Para el Candidato:** Feedback visual inmediato (Pendiente/Confirmado) y protección contra solapamientos.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/cfcbff55-87da-4a92-80bb-1426b97d4f60) and start prompting.
+## 🛠️ Stack Tecnológico
 
-Changes made via Lovable will be committed automatically to this repo.
+Este proyecto ha sido construido utilizando arquitectura moderna y escalable:
 
-**Use your preferred IDE**
+* **Frontend:** React + Vite + TypeScript
+* **Estilos:** Tailwind CSS + Shadcn UI (Diseño limpio y responsive).
+* **Backend & Base de Datos:** Supabase (PostgreSQL + Realtime).
+* **Generación de Código:** Lovable.dev & AI Assisted Development.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## ✨ Funcionalidades Clave
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 1. Gestión de Eventos (Admin)
+* 📅 **Generador de Parrilla:** Creación automática de slots de 15 minutos (estándar de la industria).
+* 🏢 **Asignación "White Glove":** El administrador asigna rangos horarios a las empresas según su plan (Mañana/Tarde/Full Day).
+* ✏️ **Edición en Caliente:** Capacidad de modificar parámetros del evento y regenerar agendas vacías.
 
-Follow these steps:
+### 2. Experiencia del Candidato
+* 🚦 **Semáforo de Estados:** Visualización clara de disponibilidad (Libre, En Revisión ⏳, Confirmada ✅, Ocupada ⛔).
+* 🔒 **Regla de los 10 Minutos:** Bloqueo automático de solicitudes 10 minutos antes del inicio para evitar sorpresas.
+* 🚫 **Anti-Spam:** Limitación lógica de "Máx. 1 solicitud pendiente por empresa" para evitar acaparadores.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 3. Lógica de Negocio (Slots)
+* **Capacidad Unitaria:** Prioridad al modelo "1 a 1". El slot se bloquea temporalmente al recibir una solicitud.
+* **Flujo Secuencial:** Si la empresa rechaza al candidato A, el slot se libera automáticamente para el candidato B.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## 📸 Capturas de Pantalla
 
-# Step 3: Install the necessary dependencies.
-npm i
+<img width="1690" height="912" alt="image" src="https://github.com/user-attachments/assets/0eefe822-cd50-46ae-97f9-24ccc6b22efc" />
+<img width="723" height="1014" alt="image" src="https://github.com/user-attachments/assets/be0ebc01-78e9-4e98-8623-52db3f2008fe" />
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+
+
+## 🚀 Instalación y Despliegue Local
+
+Sigue estos pasos para correr el proyecto en tu máquina:
+
+```bash
+# 1. Clonar el repositorio
+git clone [https://github.com/Joseibaez/FeriaMatch_sync.git](https://github.com/Joseibaez/FeriaMatch_sync.git)
+
+# 2. Entrar en el directorio
+cd FeriaMatch_sync
+
+# 3. Instalar dependencias
+npm install
+
+# 4. Configurar variables de entorno
+# Crea un archivo .env y añade tus claves de Supabase:
+# VITE_SUPABASE_URL=tu_url
+# VITE_SUPABASE_ANON_KEY=tu_key
+
+# 5. Ejecutar servidor de desarrollo
 npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
 ## What technologies are used for this project?
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/cfcbff55-87da-4a92-80bb-1426b97d4f60) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
